@@ -29,6 +29,7 @@ pub(crate) struct App {
 #[derive(Copy, Clone)]
 struct Globals {
     resolution: [f32; 2],
+    _pad: [u8; 8],
 }
 
 unsafe impl bytemuck::Pod for Globals {}
@@ -374,6 +375,7 @@ impl App {
             0,
             bytemuck::cast_slice(&[Globals {
                 resolution: [self.config.width as f32, self.config.height as f32],
+                _pad: [0; 8],
             }]),
         );
 
