@@ -1,24 +1,22 @@
-use std::num::NonZeroU32;
-
 use anyhow::*;
 use image::GenericImageView;
 
 pub(crate) struct Texture {
-    pub(crate) texture: wgpu::Texture,
+    pub(crate) _texture: wgpu::Texture,
     pub(crate) view: wgpu::TextureView,
     pub(crate) sampler: wgpu::Sampler,
 }
 
 impl Texture {
-    pub(crate) fn from_bytes(
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        bytes: &[u8],
-        label: &str,
-    ) -> Result<Self> {
-        let img = image::load_from_memory(bytes)?;
-        Self::from_image(device, queue, &img, Some(label))
-    }
+    // pub(crate) fn from_bytes(
+    //     device: &wgpu::Device,
+    //     queue: &wgpu::Queue,
+    //     bytes: &[u8],
+    //     label: &str,
+    // ) -> Result<Self> {
+    //     let img = image::load_from_memory(bytes)?;
+    //     Self::from_image(device, queue, &img, Some(label))
+    // }
 
     pub(crate) fn from_image(
         device: &wgpu::Device,
@@ -74,7 +72,7 @@ impl Texture {
         });
 
         Ok(Self {
-            texture,
+            _texture: texture,
             view,
             sampler,
         })

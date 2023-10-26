@@ -15,18 +15,6 @@ use crate::{
     vertex::{Vertex, VertexConstructor},
 };
 
-fn to_linear_rgb(r: u8, g: u8, b: u8) -> (f32, f32, f32) {
-    let f = |xu: u8| {
-        let x = xu as f32 / 255.0;
-        if x > 0.04045 {
-            ((x + 0.055) / 1.055).powf(2.4)
-        } else {
-            x / 12.92
-        }
-    };
-    (f(r), f(g), f(b))
-}
-
 // pub(crate) enum DrawCommand {
 //     FillColor(f32, f32, f32, f32),
 //     StrokeColor(f32, f32, f32, f32),

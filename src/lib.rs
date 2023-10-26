@@ -10,7 +10,11 @@ use std::time::Instant;
 
 use app::App;
 use frame::Frame;
-use state::{AppState, ResourceLoader};
+use state::{ResourceLoader, WindowedAppState};
+
+#[cfg(feature = "html-canvas")]
+use state::CanvasAppState;
+
 use winit::{
     dpi::PhysicalSize,
     event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
@@ -26,7 +30,7 @@ mod vertex;
 
 pub use winit::*;
 
-pub fn run_app<S: AppState + 'static>() -> ! {
+pub fn run_app_windowed<S: WindowedAppState + 'static>() -> ! {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_inner_size(PhysicalSize::new(600, 600))
@@ -40,7 +44,7 @@ pub fn run_app<S: AppState + 'static>() -> ! {
 
     let atlas = loader.build_atlas();
     let atlas_size = (atlas.width() as f32, atlas.height() as f32);
-    let mut app = App::new(state.get_window(), atlas);
+    let mut app = App::new_windowed(state.get_window(), atlas);
 
     let time = Instant::now();
     let mut last_time = 0.0;
@@ -88,7 +92,7 @@ pub fn run_app<S: AppState + 'static>() -> ! {
                     Ok(_) => {}
                     // Reconfigure the surface if it's lost or outdated
                     Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
-                        app.resize(app.size)
+                        app.resize((app.config.width, app.config.height).into())
                     }
                     // The system is out of memory, we should probably quit
                     Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
@@ -104,4 +108,50 @@ pub fn run_app<S: AppState + 'static>() -> ! {
             _ => {}
         }
     });
+}
+
+#[cfg(feature = "html-canvas")]
+pub struct CanvasAppBundle<S> {
+    state: S,
+    app: App,
+    frame: Frame,
+}
+
+#[cfg(feature = "html-canvas")]
+impl<S: CanvasAppState> CanvasAppBundle<S> {
+    pub fn render(&mut self, delta: f32) {
+        self.state.update(delta);
+
+        self.frame.reset();
+        self.state.view(&mut self.frame);
+
+        match self.app.render(&self.frame) {
+            Ok(_) => {}
+            Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => self
+                .app
+                .resize((self.app.config.width, self.app.config.height).into()),
+            Err(wgpu::SurfaceError::OutOfMemory) => {
+                println!("out of memory")
+            }
+            Err(wgpu::SurfaceError::Timeout) => println!("Surface timeout"),
+        }
+    }
+    pub fn resize(&mut self, width: u32, height: u32) {
+        self.app.resize((width, height).into());
+    }
+}
+
+#[cfg(feature = "html-canvas")]
+#[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
+pub fn new_app_canvas<S: CanvasAppState>(canvas: web_sys::HtmlCanvasElement) -> CanvasAppBundle<S> {
+    let mut loader = ResourceLoader::new();
+    let state = S::init(&mut loader);
+
+    let atlas = loader.build_atlas();
+    let atlas_size = (atlas.width() as f32, atlas.height() as f32);
+    let app = App::new_canvas(canvas, atlas);
+
+    let frame = Frame::new(atlas_size);
+
+    CanvasAppBundle { state, app, frame }
 }

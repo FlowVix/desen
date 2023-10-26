@@ -402,6 +402,7 @@ dependencies = [
  "lyon",
  "nalgebra",
  "texture_packer",
+ "web-sys",
  "wgpu",
  "winit",
 ]

@@ -2,17 +2,22 @@ use std::path::Path;
 
 use image::DynamicImage;
 use texture_packer::{
-    exporter::ImageExporter, importer::ImageImporter, texture::Texture, TexturePacker,
-    TexturePackerConfig,
+    exporter::ImageExporter, importer::ImageImporter, TexturePacker, TexturePackerConfig,
 };
 use winit::{event::WindowEvent, window::Window};
 
-use crate::{app::App, frame::Frame};
+use crate::frame::Frame;
 
-pub trait AppState {
+pub trait WindowedAppState: AppState {
     fn init(window: Window, loader: &mut ResourceLoader) -> Self;
     fn get_window(&self) -> &Window;
     fn event(&mut self, event: &WindowEvent);
+}
+#[cfg(feature = "html-canvas")]
+pub trait CanvasAppState: AppState {
+    fn init(loader: &mut ResourceLoader) -> Self;
+}
+pub trait AppState {
     fn update(&mut self, delta: f32);
     fn view(&self, frame: &mut Frame);
 }

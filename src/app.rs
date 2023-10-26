@@ -2,25 +2,10 @@ use std::iter;
 
 use futures::executor::block_on;
 use image::DynamicImage;
-use lyon::{
-    algorithms::rounded_polygon::add_rounded_polygon,
-    geom::{Box2D, LineSegment},
-    lyon_tessellation::{
-        BuffersBuilder, FillOptions, FillTessellator, StrokeOptions, StrokeTessellator,
-        VertexBuffers,
-    },
-    math::point,
-    path::{Path, Polygon, NO_ATTRIBUTES},
-};
-use nalgebra::Matrix3;
-use wgpu::{util::DeviceExt, TextureDescriptor};
+use wgpu::{util::DeviceExt, Instance, Surface, TextureDescriptor};
 use winit::{event::WindowEvent, window::Window};
 
-use crate::{
-    frame::Frame,
-    texture,
-    vertex::{Vertex, VertexConstructor, VertexMode},
-};
+use crate::{frame::Frame, texture, vertex::Vertex};
 
 pub(crate) struct App {
     pub surface: wgpu::Surface,
@@ -28,8 +13,7 @@ pub(crate) struct App {
     pub queue: wgpu::Queue,
     pub config: wgpu::SurfaceConfiguration,
 
-    pub size: winit::dpi::PhysicalSize<u32>,
-
+    // pub size: winit::dpi::PhysicalSize<u32>,
     pub render_pipeline: wgpu::RenderPipeline,
 
     pub atlas_bind_group: wgpu::BindGroup,
@@ -51,19 +35,13 @@ unsafe impl bytemuck::Pod for Globals {}
 unsafe impl bytemuck::Zeroable for Globals {}
 
 impl App {
-    pub fn new(window: &Window, atlas: DynamicImage) -> Self {
+    pub fn new(
+        surface: Surface,
+        size: (u32, u32),
+        instance: Instance,
+        atlas: DynamicImage,
+    ) -> Self {
         let sample_count = 4;
-
-        let size = window.inner_size();
-
-        // The instance is a handle to our GPU
-        // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::all(),
-            dx12_shader_compiler: Default::default(),
-        });
-
-        let surface = unsafe { instance.create_surface(&window) }.unwrap();
 
         let adapter = block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
             power_preference: wgpu::PowerPreference::HighPerformance,
@@ -99,8 +77,8 @@ impl App {
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,
-            width: size.width,
-            height: size.height,
+            width: size.0,
+            height: size.1,
             present_mode: surface_caps.present_modes[0],
             alpha_mode: surface_caps.alpha_modes[0],
             view_formats: vec![],
@@ -260,7 +238,6 @@ impl App {
             device,
             queue,
             config,
-            size,
             render_pipeline,
             atlas_bind_group,
             globals_bind_group,
@@ -270,9 +247,48 @@ impl App {
         }
     }
 
+    pub fn new_windowed(window: &Window, atlas: DynamicImage) -> Self {
+        let size = window.inner_size();
+
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+            backends: wgpu::Backends::all(),
+            dx12_shader_compiler: Default::default(),
+        });
+
+        let surface = unsafe { instance.create_surface(&window) }.unwrap();
+
+        Self::new(surface, (size.width, size.height), instance, atlas)
+    }
+    #[cfg(feature = "html-canvas")]
+    #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
+    pub fn new_canvas(canvas: web_sys::HtmlCanvasElement, atlas: DynamicImage) -> Self {
+        // let size = window.inner_size();
+
+        // let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+        //     backends: wgpu::Backends::all(),
+        //     dx12_shader_compiler: Default::default(),
+        // });
+
+        // let surface = unsafe { instance.create_surface(&window) }.unwrap();
+
+        // Self::new(surface, (size.width, size.height), instance, atlas)
+
+        let (width, height) = (canvas.width(), canvas.height());
+
+        // The instance is a handle to our GPU
+        // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+            backends: wgpu::Backends::all(),
+            dx12_shader_compiler: Default::default(),
+        });
+
+        let surface = instance.create_surface_from_canvas(canvas).unwrap();
+
+        Self::new(surface, (width, height), instance, atlas)
+    }
+
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         if new_size.width > 0 && new_size.height > 0 {
-            self.size = new_size;
             self.config.width = new_size.width;
             self.config.height = new_size.height;
             self.surface.configure(&self.device, &self.config);
@@ -357,7 +373,7 @@ impl App {
             &self.globals_ubo,
             0,
             bytemuck::cast_slice(&[Globals {
-                resolution: [self.size.width as f32, self.size.height as f32],
+                resolution: [self.config.width as f32, self.config.height as f32],
             }]),
         );
 
