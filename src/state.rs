@@ -59,11 +59,7 @@ impl<'a> ResourceLoader<'a> {
         Self { packer }
     }
 
-    pub fn load_texture(&mut self, path_str: &str) -> LoadedTexture {
-        let path = Path::new(path_str);
-        let texture = ImageImporter::import_from_file(path)
-            .unwrap_or_else(|_| panic!("Unable to import image at {:?}", path));
-
+    fn load_texture(&mut self, texture: DynamicImage) -> LoadedTexture {
         let key = self.packer.get_frames().len();
         self.packer.pack_own(key, texture).unwrap();
         let frame = self.packer.get_frame(&key).unwrap().frame;
@@ -73,6 +69,20 @@ impl<'a> ResourceLoader<'a> {
             w: frame.w,
             h: frame.h,
         }
+    }
+
+    pub fn load_texture_path(&mut self, path_str: &str) -> LoadedTexture {
+        let path = Path::new(path_str);
+        let texture = ImageImporter::import_from_file(path)
+            .unwrap_or_else(|_| panic!("Unable to import image at {:?}", path));
+
+        self.load_texture(texture)
+    }
+    pub fn load_texture_bytes(&mut self, bytes: &[u8]) -> LoadedTexture {
+        let texture = ImageImporter::import_from_memory(bytes)
+            .unwrap_or_else(|_| panic!("Unable to import image"));
+
+        self.load_texture(texture)
     }
 
     pub fn build_atlas(&self) -> DynamicImage {
