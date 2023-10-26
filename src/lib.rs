@@ -112,7 +112,7 @@ pub fn run_app_windowed<S: WindowedAppState + 'static>() -> ! {
 
 #[cfg(feature = "html-canvas")]
 pub struct CanvasAppBundle<S> {
-    state: S,
+    pub state: S,
     app: App,
     frame: Frame,
 }
@@ -138,6 +138,9 @@ impl<S: CanvasAppState> CanvasAppBundle<S> {
     }
     pub fn resize(&mut self, width: u32, height: u32) {
         self.app.resize((width, height).into());
+    }
+    pub fn get_size(&mut self) -> (u32, u32) {
+        (self.app.config.width, self.app.config.height)
     }
 }
 

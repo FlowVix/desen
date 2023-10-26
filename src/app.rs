@@ -13,7 +13,6 @@ pub(crate) struct App {
     pub queue: wgpu::Queue,
     pub config: wgpu::SurfaceConfiguration,
 
-    // pub size: winit::dpi::PhysicalSize<u32>,
     pub render_pipeline: wgpu::RenderPipeline,
 
     pub atlas_bind_group: wgpu::BindGroup,
