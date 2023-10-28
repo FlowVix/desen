@@ -15,60 +15,17 @@ use crate::{
     vertex::{Vertex, VertexConstructor},
 };
 
-// pub(crate) enum DrawCommand {
-//     FillColor(f32, f32, f32, f32),
-//     StrokeColor(f32, f32, f32, f32),
-//     NoStroke,
-//     NoFill,
-//     StrokeWeight(f32),
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BlendMode {
+    Normal,
+    Additive,
+}
 
-//     Circle {
-//         radius: f32,
-//         x: f32,
-//         y: f32,
-//     },
-//     Rect {
-//         x: f32,
-//         y: f32,
-//         w: f32,
-//         h: f32,
-//     },
-//     Line {
-//         x0: f32,
-//         y0: f32,
-//         x1: f32,
-//         y1: f32,
-//     },
-//     RoundedRect {
-//         x: f32,
-//         y: f32,
-//         w: f32,
-//         h: f32,
-//         r: f32,
-//     },
-
-//     Translate {
-//         x: f32,
-//         y: f32,
-//     },
-//     Rotate(f32),
-//     Scale {
-//         x: f32,
-//         y: f32,
-//     },
-
-//     PushTransform,
-//     PopTransform,
-
-//     Image {
-//         tex: LoadedTexture,
-//         x: f32,
-//         y: f32,
-//         w: f32,
-//         h: f32,
-//         tinted: bool,
-//     },
-// }
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct BlendPass {
+    pub(crate) start_index: u32,
+    pub(crate) mode: BlendMode,
+}
 
 pub struct Frame {
     pub(crate) atlas_size: (f32, f32),
@@ -88,6 +45,8 @@ pub struct Frame {
 
     pub(crate) transform: Matrix3<f32>,
     pub(crate) transform_stack: Vec<Matrix3<f32>>,
+
+    pub(crate) blend_passes: Vec<BlendPass>,
 }
 
 impl Frame {
@@ -106,6 +65,10 @@ impl Frame {
             draw_stroke: true,
             transform: Matrix3::<f32>::identity(),
             transform_stack: vec![],
+            blend_passes: vec![BlendPass {
+                start_index: 0,
+                mode: BlendMode::Normal,
+            }],
         }
     }
     pub(crate) fn reset(&mut self) {
@@ -343,5 +306,16 @@ impl Frame {
             2 + vert_count,
             vert_count,
         ])
+    }
+    pub fn get_blend_mode(&self) -> BlendMode {
+        self.blend_passes.last().unwrap().mode
+    }
+    pub fn set_blend_mode(&mut self, mode: BlendMode) {
+        if mode != self.get_blend_mode() {
+            self.blend_passes.push(BlendPass {
+                start_index: self.geometry.indices.len() as u32,
+                mode,
+            })
+        }
     }
 }
