@@ -55,8 +55,8 @@ fn to_linear(v: f32) -> f32 {
 }
 
 
-@fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+
+fn fs_color(in: VertexOutput) -> vec4<f32> {
     let tex_color = textureSample(t_atlas, s_atlas, in.tex_coords);
 
     if in.mode == u32(0) {
@@ -66,4 +66,16 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         return tex_color;
     }
     return tex_color * vec4<f32>((in.color.r), (in.color.g), (in.color.b), in.color.a);
+}
+
+
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    return fs_color(in);
+}
+
+@fragment
+fn fs_main_squared_alpha(in: VertexOutput) -> @location(0) vec4<f32> {
+    let c = fs_color(in);
+    return vec4<f32>(c.rgb * c.a, c.a);
 }

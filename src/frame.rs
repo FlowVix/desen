@@ -19,6 +19,7 @@ use crate::{
 pub enum BlendMode {
     Normal,
     Additive,
+    AdditiveSquaredAlpha,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -81,7 +82,12 @@ impl Frame {
         self.draw_fill = true;
         self.draw_stroke = true;
         self.transform = Matrix3::<f32>::identity();
-        self.transform_stack = vec![];
+        self.transform_stack.clear();
+        self.blend_passes.clear();
+        self.blend_passes.push(BlendPass {
+            start_index: 0,
+            mode: BlendMode::Normal,
+        });
     }
 
     pub fn fill(&mut self, r: u8, g: u8, b: u8, a: u8) {

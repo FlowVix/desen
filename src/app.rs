@@ -15,6 +15,7 @@ pub(crate) struct App {
 
     pub render_pipeline_normal: wgpu::RenderPipeline,
     pub render_pipeline_additive: wgpu::RenderPipeline,
+    pub render_pipeline_additive_squared_alpha: wgpu::RenderPipeline,
 
     pub atlas_bind_group: wgpu::BindGroup,
 
@@ -282,6 +283,54 @@ impl App {
                 // indicates how many array layers the attachments will have.
                 multiview: None,
             });
+        let render_pipeline_additive_squared_alpha =
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("Render Pipeline Additive Squared Alpha"),
+                layout: Some(&render_pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &shader,
+                    entry_point: "vs_main",
+                    buffers: &[Vertex::desc()],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: "fs_main_squared_alpha",
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: config.format,
+                        blend: Some(wgpu::BlendState {
+                            color: wgpu::BlendComponent {
+                                src_factor: wgpu::BlendFactor::SrcAlpha,
+                                dst_factor: wgpu::BlendFactor::One,
+                                operation: wgpu::BlendOperation::Add,
+                            },
+                            alpha: wgpu::BlendComponent::OVER,
+                        }),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    strip_index_format: None,
+                    front_face: wgpu::FrontFace::Cw,
+                    cull_mode: Some(wgpu::Face::Back),
+                    // Setting this to anything other than Fill requires Features::POLYGON_MODE_LINE
+                    // or Features::POLYGON_MODE_POINT
+                    polygon_mode: wgpu::PolygonMode::Fill,
+                    // Requires Features::DEPTH_CLIP_CONTROL
+                    unclipped_depth: false,
+                    // Requires Features::CONSERVATIVE_RASTERIZATION
+                    conservative: false,
+                },
+                depth_stencil: None,
+                multisample: wgpu::MultisampleState {
+                    count: sample_count,
+                    mask: !0,
+                    alpha_to_coverage_enabled: false,
+                },
+                // If the pipeline will be used with a multiview render pass, this
+                // indicates how many array layers the attachments will have.
+                multiview: None,
+            });
 
         Self {
             surface,
@@ -290,6 +339,7 @@ impl App {
             config,
             render_pipeline_normal,
             render_pipeline_additive,
+            render_pipeline_additive_squared_alpha,
             atlas_bind_group,
             globals_bind_group,
             globals_ubo,
@@ -464,6 +514,9 @@ impl App {
                 render_pass.set_pipeline(match pass.mode {
                     crate::frame::BlendMode::Normal => &self.render_pipeline_normal,
                     crate::frame::BlendMode::Additive => &self.render_pipeline_additive,
+                    crate::frame::BlendMode::AdditiveSquaredAlpha => {
+                        &self.render_pipeline_additive_squared_alpha
+                    }
                 });
                 render_pass.draw_indexed(start..end, 0, 0..1);
             }
