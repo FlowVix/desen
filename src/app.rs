@@ -5,7 +5,7 @@ use image::DynamicImage;
 use wgpu::{util::DeviceExt, Instance, Surface, TextureDescriptor};
 use winit::{event::WindowEvent, window::Window};
 
-use crate::{frame::Frame, texture, vertex::Vertex};
+use crate::{frame::Frame, state::ResourceLoader, texture, vertex::Vertex};
 
 pub(crate) struct App {
     pub surface: wgpu::Surface,
@@ -17,7 +17,7 @@ pub(crate) struct App {
     pub render_pipeline_additive: wgpu::RenderPipeline,
     pub render_pipeline_additive_squared_alpha: wgpu::RenderPipeline,
 
-    pub atlas_bind_group: wgpu::BindGroup,
+    pub texture_bind_groups: Vec<wgpu::BindGroup>,
 
     pub globals_bind_group: wgpu::BindGroup,
     pub globals_ubo: wgpu::Buffer,
@@ -41,7 +41,7 @@ impl App {
         surface: Surface,
         size: (u32, u32),
         instance: Instance,
-        atlas: DynamicImage,
+        loader: ResourceLoader,
     ) -> Self {
         let sample_count = 4;
 
@@ -87,15 +87,14 @@ impl App {
         };
         surface.configure(&device, &config);
 
-        let atlas_texture =
-            texture::Texture::from_image(&device, &queue, &atlas, Some("atlas")).unwrap();
-
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/shader.wgsl").into()),
         });
 
-        let atlas_bind_group_layout =
+        let mut texture_bind_groups = vec![];
+
+        let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[
                     wgpu::BindGroupLayoutEntry {
@@ -115,23 +114,28 @@ impl App {
                         count: None,
                     },
                 ],
-                label: Some("atlas_bind_group_layout"),
+                label: Some("texture_bind_group_layout"),
+            });
+        for img in &loader.textures {
+            let tex = texture::Texture::from_image(&device, &queue, img, Some("texture")).unwrap();
+
+            let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                layout: &texture_bind_group_layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::TextureView(&tex.view),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: wgpu::BindingResource::Sampler(&tex.sampler),
+                    },
+                ],
+                label: Some("texture_bind_group"),
             });
 
-        let atlas_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &atlas_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&atlas_texture.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&atlas_texture.sampler),
-                },
-            ],
-            label: Some("atlas_bind_group"),
-        });
+            texture_bind_groups.push(bind_group)
+        }
 
         let globals_buffer_byte_size = std::mem::size_of::<Globals>() as u64;
 
@@ -183,7 +187,7 @@ impl App {
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&globals_bind_group_layout, &atlas_bind_group_layout],
+                bind_group_layouts: &[&globals_bind_group_layout, &texture_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
@@ -340,7 +344,7 @@ impl App {
             render_pipeline_normal,
             render_pipeline_additive,
             render_pipeline_additive_squared_alpha,
-            atlas_bind_group,
+            texture_bind_groups,
             globals_bind_group,
             globals_ubo,
             sample_count,
@@ -348,7 +352,7 @@ impl App {
         }
     }
 
-    pub fn new_windowed(window: &Window, atlas: DynamicImage) -> Self {
+    pub fn new_windowed(window: &Window, loader: ResourceLoader) -> Self {
         let size = window.inner_size();
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
@@ -358,26 +362,13 @@ impl App {
 
         let surface = unsafe { instance.create_surface(&window) }.unwrap();
 
-        Self::new(surface, (size.width, size.height), instance, atlas)
+        Self::new(surface, (size.width, size.height), instance, loader)
     }
     #[cfg(feature = "html-canvas")]
     #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
-    pub fn new_canvas(canvas: web_sys::HtmlCanvasElement, atlas: DynamicImage) -> Self {
-        // let size = window.inner_size();
-
-        // let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-        //     backends: wgpu::Backends::all(),
-        //     dx12_shader_compiler: Default::default(),
-        // });
-
-        // let surface = unsafe { instance.create_surface(&window) }.unwrap();
-
-        // Self::new(surface, (size.width, size.height), instance, atlas)
-
+    pub fn new_canvas(canvas: web_sys::HtmlCanvasElement, loader: ResourceLoader) -> Self {
         let (width, height) = (canvas.width(), canvas.height());
 
-        // The instance is a handle to our GPU
-        // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
             dx12_shader_compiler: Default::default(),
@@ -385,7 +376,7 @@ impl App {
 
         let surface = instance.create_surface_from_canvas(canvas).unwrap();
 
-        Self::new(surface, (width, height), instance, atlas)
+        Self::new(surface, (width, height), instance, loader)
     }
 
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
@@ -498,26 +489,32 @@ impl App {
             });
 
             render_pass.set_bind_group(0, &self.globals_bind_group, &[]);
-            render_pass.set_bind_group(1, &self.atlas_bind_group, &[]);
+            render_pass.set_bind_group(1, &self.texture_bind_groups[0], &[]);
             render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
             render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
 
             let num_indices = frame.geometry.indices.len() as u32;
-            for (idx, pass) in frame.blend_passes.iter().enumerate() {
+            for (idx, pass) in frame.draw_chunks.iter().enumerate() {
                 let start = pass.start_index;
                 let end = frame
-                    .blend_passes
+                    .draw_chunks
                     .get(idx + 1)
                     .map(|p| p.start_index)
                     .unwrap_or(num_indices);
 
-                render_pass.set_pipeline(match pass.mode {
-                    crate::frame::BlendMode::Normal => &self.render_pipeline_normal,
-                    crate::frame::BlendMode::Additive => &self.render_pipeline_additive,
-                    crate::frame::BlendMode::AdditiveSquaredAlpha => {
-                        &self.render_pipeline_additive_squared_alpha
-                    }
-                });
+                if let Some(mode) = pass.blend_mode {
+                    render_pass.set_pipeline(match mode {
+                        crate::frame::BlendMode::Normal => &self.render_pipeline_normal,
+                        crate::frame::BlendMode::Additive => &self.render_pipeline_additive,
+                        crate::frame::BlendMode::AdditiveSquaredAlpha => {
+                            &self.render_pipeline_additive_squared_alpha
+                        }
+                    });
+                }
+                if let Some(tex) = pass.texture {
+                    render_pass.set_bind_group(1, &self.texture_bind_groups[tex.idx], &[]);
+                }
+
                 render_pass.draw_indexed(start..end, 0, 0..1);
             }
         }

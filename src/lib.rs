@@ -42,14 +42,12 @@ pub fn run_app_windowed<S: WindowedAppState + 'static>() -> ! {
     let mut loader = ResourceLoader::new();
     let mut state = S::init(window, &mut loader);
 
-    let atlas = loader.build_atlas();
-    let atlas_size = (atlas.width() as f32, atlas.height() as f32);
-    let mut app = App::new_windowed(state.get_window(), atlas);
+    let mut app = App::new_windowed(state.get_window(), loader);
 
     let time = Instant::now();
     let mut last_time = 0.0;
 
-    let mut frame = Frame::new(atlas_size);
+    let mut frame = Frame::new();
 
     event_loop.run(move |event, _, control_flow| {
         match event {
@@ -150,11 +148,9 @@ pub fn new_app_canvas<S: CanvasAppState>(canvas: web_sys::HtmlCanvasElement) -> 
     let mut loader = ResourceLoader::new();
     let state = S::init(&mut loader);
 
-    let atlas = loader.build_atlas();
-    let atlas_size = (atlas.width() as f32, atlas.height() as f32);
-    let app = App::new_canvas(canvas, atlas);
+    let app = App::new_canvas(canvas, loader);
 
-    let frame = Frame::new(atlas_size);
+    let frame = Frame::new();
 
     CanvasAppBundle { state, app, frame }
 }

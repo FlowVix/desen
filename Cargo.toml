@@ -11,7 +11,6 @@ html-canvas = ["dep:web-sys"]
 
 [dependencies]
 bytemuck = { version = "1.14.0", features = ["derive"] }
-env_logger = "0.10.0"
 futures = "0.3.28"
 lyon = "1.0.1"
 wgpu = { version = "0.17", features = ["webgl"] }
@@ -20,7 +19,6 @@ winit = "0.28.6"
 nalgebra = "0.32.3"
 anyhow = "1.0.75"
 image = "0.24.7"
-texture_packer = "0.25.0"
 web-sys = { version = "0.3", features = [
     "Document",
     "Element",

@@ -1,9 +1,6 @@
-use std::path::Path;
+use std::{io::Cursor, path::Path};
 
 use image::DynamicImage;
-use texture_packer::{
-    exporter::ImageExporter, importer::ImageImporter, TexturePacker, TexturePackerConfig,
-};
 use winit::{event::WindowEvent, window::Window};
 
 use crate::frame::Frame;
@@ -24,68 +21,43 @@ pub trait AppState {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct LoadedTexture {
-    pub(crate) x: u32,
-    pub(crate) y: u32,
+    pub(crate) idx: usize,
     pub(crate) w: u32,
     pub(crate) h: u32,
 }
 
-impl LoadedTexture {
-    pub(crate) fn atlas_coords(&self, atlas_width: f32, atlas_height: f32) -> (f32, f32, f32, f32) {
-        (
-            self.x as f32 / atlas_width,
-            self.y as f32 / atlas_height,
-            (self.x + self.w) as f32 / atlas_width,
-            (self.y + self.h) as f32 / atlas_height,
-        )
-    }
+pub struct ResourceLoader {
+    pub(crate) textures: Vec<DynamicImage>,
 }
 
-pub struct ResourceLoader<'a> {
-    packer: TexturePacker<'a, image::DynamicImage, usize>,
-}
-
-impl<'a> ResourceLoader<'a> {
+use image::io::Reader as ImageReader;
+impl ResourceLoader {
     pub(crate) fn new() -> Self {
-        let config = TexturePackerConfig {
-            max_width: 4096,
-            max_height: 4096,
-            allow_rotation: false,
-            border_padding: 2,
-            trim: false,
-            ..Default::default()
-        };
-        let packer = TexturePacker::new_skyline(config);
-        Self { packer }
+        Self { textures: vec![] }
     }
 
     fn load_texture(&mut self, texture: DynamicImage) -> LoadedTexture {
-        let key = self.packer.get_frames().len();
-        self.packer.pack_own(key, texture).unwrap();
-        let frame = self.packer.get_frame(&key).unwrap().frame;
-        LoadedTexture {
-            x: frame.x,
-            y: frame.y,
-            w: frame.w,
-            h: frame.h,
-        }
+        let out = LoadedTexture {
+            idx: self.textures.len(),
+            w: texture.width(),
+            h: texture.height(),
+        };
+        self.textures.push(texture);
+        out
     }
 
-    pub fn load_texture_path(&mut self, path_str: &str) -> LoadedTexture {
-        let path = Path::new(path_str);
-        let texture = ImageImporter::import_from_file(path)
-            .unwrap_or_else(|_| panic!("Unable to import image at {:?}", path));
+    pub fn load_texture_path<T: AsRef<Path>>(&mut self, path_str: T) -> LoadedTexture {
+        let img = ImageReader::open(path_str).unwrap().decode().unwrap();
 
-        self.load_texture(texture)
+        self.load_texture(img)
     }
     pub fn load_texture_bytes(&mut self, bytes: &[u8]) -> LoadedTexture {
-        let texture = ImageImporter::import_from_memory(bytes)
-            .unwrap_or_else(|_| panic!("Unable to import image"));
+        let img = ImageReader::new(Cursor::new(bytes))
+            .with_guessed_format()
+            .unwrap()
+            .decode()
+            .unwrap();
 
-        self.load_texture(texture)
-    }
-
-    pub fn build_atlas(&self) -> DynamicImage {
-        ImageExporter::export(&self.packer).unwrap()
+        self.load_texture(img)
     }
 }

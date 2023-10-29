@@ -36,9 +36,9 @@ fn vs_main(
 // Fragment shader
 
 @group(1) @binding(0)
-var t_atlas: texture_2d<f32>;
+var t_current_tex: texture_2d<f32>;
 @group(1) @binding(1)
-var s_atlas: sampler;
+var s_current_tex: sampler;
 
 fn to_srgb(v: f32) -> f32 {
     if v < 0.04045 / 12.92 {
@@ -57,7 +57,7 @@ fn to_linear(v: f32) -> f32 {
 
 
 fn fs_color(in: VertexOutput) -> vec4<f32> {
-    let tex_color = textureSample(t_atlas, s_atlas, in.tex_coords);
+    let tex_color = textureSample(t_current_tex, s_current_tex, in.tex_coords);
 
     if in.mode == u32(0) {
         return in.color;
