@@ -344,14 +344,14 @@ impl Frame {
         if let Some(tex) = self.current_texture {
             let texw = tex.w as f32;
             let texh = tex.h as f32;
-            let w = w.unwrap_or(region.2 - region.0);
-            let h = h.unwrap_or(region.3 - region.1);
+            let w = w.unwrap_or(region.2);
+            let h = h.unwrap_or(region.3);
 
             let (x0, y0, x1, y1) = (
                 region.0 / texw,
                 region.1 / texh,
-                region.2 / texw,
-                region.3 / texh,
+                (region.0 + region.2) / texw,
+                (region.1 + region.3) / texh,
             );
 
             let vert_count = self.geometry.vertices.len() as u32;
