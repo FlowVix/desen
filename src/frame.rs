@@ -43,8 +43,8 @@ pub struct Frame {
     pub(crate) stroke_color: (f32, f32, f32, f32),
     pub(crate) draw_stroke: bool,
 
-    pub(crate) transform: Matrix3<f32>,
-    pub(crate) transform_stack: Vec<Matrix3<f32>>,
+    pub(crate) transform: FrameTransformMatrix,
+    pub(crate) transform_stack: Vec<FrameTransformMatrix>,
 
     pub(crate) draw_chunks: Vec<DrawChunk>,
 
@@ -65,7 +65,7 @@ impl Frame {
             draw_fill: true,
             stroke_color: (0.8, 0.8, 0.8, 1.0),
             draw_stroke: true,
-            transform: Matrix3::<f32>::identity(),
+            transform: FrameTransformMatrix::identity(),
             transform_stack: vec![],
             draw_chunks: vec![DrawChunk {
                 start_index: 0,
@@ -85,7 +85,7 @@ impl Frame {
         self.stroke_color = (0.8, 0.8, 0.8, 1.0);
         self.draw_fill = true;
         self.draw_stroke = true;
-        self.transform = Matrix3::<f32>::identity();
+        self.transform = FrameTransformMatrix::identity();
         self.transform_stack.clear();
         self.draw_chunks.clear();
         self.draw_chunks.push(DrawChunk {
@@ -232,17 +232,18 @@ impl Frame {
     }
 
     pub fn translate(&mut self, x: f32, y: f32) {
-        self.transform *= Matrix3::new(1.0, 0.0, x, 0.0, 1.0, y, 0.0, 0.0, 1.0);
+        self.transform(FrameTransform::Translate { x, y })
     }
     pub fn rotate(&mut self, angle: f32) {
-        let cos = angle.cos();
-        let sin = angle.sin();
-
-        self.transform *= Matrix3::new(cos, -sin, 0.0, sin, cos, 0.0, 0.0, 0.0, 1.0);
+        self.transform(FrameTransform::Rotate(angle))
     }
     pub fn scale(&mut self, x: f32, y: f32) {
-        self.transform *= Matrix3::new(x, 0.0, 0.0, 0.0, y, 0.0, 0.0, 0.0, 1.0);
+        self.transform(FrameTransform::Scale { x, y })
     }
+    pub fn transform(&mut self, t: FrameTransform) {
+        self.transform *= t.mat()
+    }
+
     pub fn push(&mut self) {
         self.transform_stack.push(self.transform);
     }
@@ -417,5 +418,50 @@ impl Frame {
             texture: Some(tex),
         });
         self.current_texture = Some(tex)
+    }
+
+    pub fn get_current_transform(&self) -> FrameTransformMatrix {
+        self.transform
+    }
+}
+
+pub type FrameTransformMatrix = Matrix3<f32>;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum FrameTransform {
+    Translate { x: f32, y: f32 },
+    Rotate(f32),
+    Scale { x: f32, y: f32 },
+    Custom(FrameTransformMatrix),
+}
+
+impl FrameTransform {
+    #[inline]
+    pub fn mat(self) -> FrameTransformMatrix {
+        match self {
+            FrameTransform::Translate { x, y } => {
+                FrameTransformMatrix::new(1.0, 0.0, x, 0.0, 1.0, y, 0.0, 0.0, 1.0)
+            }
+            FrameTransform::Rotate(angle) => {
+                let cos = angle.cos();
+                let sin = angle.sin();
+
+                FrameTransformMatrix::new(cos, -sin, 0.0, sin, cos, 0.0, 0.0, 0.0, 1.0)
+            }
+            FrameTransform::Scale { x, y } => {
+                FrameTransformMatrix::new(x, 0.0, 0.0, 0.0, y, 0.0, 0.0, 0.0, 1.0)
+            }
+            FrameTransform::Custom(m) => m,
+        }
+    }
+    pub fn series_mat<T>(v: T) -> FrameTransformMatrix
+    where
+        T: IntoIterator<Item = Self>,
+    {
+        let mut out = FrameTransformMatrix::identity();
+        for i in v {
+            out *= i.mat()
+        }
+        out
     }
 }
