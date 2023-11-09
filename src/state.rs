@@ -16,7 +16,7 @@ pub trait CanvasAppState: AppState {
 }
 pub trait AppState {
     fn update(&mut self, delta: f32);
-    fn view(&self, frame: &mut Frame);
+    fn view(&mut self, frame: &mut Frame);
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
