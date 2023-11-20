@@ -16,7 +16,7 @@ pub enum Color {
 }
 
 impl Color {
-    pub(crate) fn to_rgba(self) -> (f32, f32, f32, f32) {
+    pub fn to_rgba(self) -> (f32, f32, f32, f32) {
         let (h, s, v, a) = match self {
             Color::Rgb8(r, g, b) => {
                 return (r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0, 1.0)
