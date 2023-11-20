@@ -10,7 +10,7 @@ use std::time::Instant;
 
 use app::App;
 use frame::Frame;
-use state::{ResourceLoader, WindowedAppState};
+use state::{WindowedAppInfo, WindowedAppState};
 
 #[cfg(feature = "html-canvas")]
 use state::CanvasAppState;
@@ -23,9 +23,11 @@ use winit::{
 };
 
 mod app;
+pub mod color;
 pub mod frame;
 pub mod state;
 pub mod texture;
+mod util;
 mod vertex;
 
 pub use winit::*;
@@ -39,10 +41,10 @@ pub fn run_app_windowed<S: WindowedAppState + 'static>() -> ! {
         .build(&event_loop)
         .unwrap();
 
-    let mut loader = ResourceLoader::new();
-    let mut state = S::init(window, &mut loader);
+    // let mut loader = ResourceLoader::new();
+    let app = App::new_windowed(&window);
 
-    let mut app = App::new_windowed(state.get_window(), loader);
+    let mut state = S::init(WindowedAppInfo { app, window });
 
     let time = Instant::now();
     let mut last_time = 0.0;
@@ -54,7 +56,7 @@ pub fn run_app_windowed<S: WindowedAppState + 'static>() -> ! {
             Event::WindowEvent {
                 ref event,
                 window_id,
-            } if window_id == state.get_window().id() => {
+            } if window_id == state.get_info().window.id() => {
                 match event {
                     WindowEvent::CloseRequested
                     | WindowEvent::KeyboardInput {
@@ -67,30 +69,34 @@ pub fn run_app_windowed<S: WindowedAppState + 'static>() -> ! {
                         ..
                     } => *control_flow = ControlFlow::Exit,
                     WindowEvent::Resized(physical_size) => {
-                        app.resize(*physical_size);
+                        state.get_info().app.resize(*physical_size);
                     }
                     WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                         // new_inner_size is &mut so w have to dereference it twice
-                        app.resize(**new_inner_size);
+                        state.get_info().app.resize(**new_inner_size);
                     }
-                    _ => state.event(event),
+                    _ => {}
                 }
+                state.event(event)
             }
-            Event::RedrawRequested(window_id) if window_id == state.get_window().id() => {
+            Event::RedrawRequested(window_id) if window_id == state.get_info().window.id() => {
                 let now = time.elapsed().as_secs_f32();
                 let delta = now - last_time;
                 last_time = now;
 
-                state.update(delta);
-
                 frame.reset();
-                state.view(&mut frame);
+                state.view(&mut frame, delta);
 
-                match app.render(&frame) {
+                match state.get_info().app.render(&frame) {
                     Ok(_) => {}
                     // Reconfigure the surface if it's lost or outdated
                     Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
-                        app.resize((app.config.width, app.config.height).into())
+                        let new_size = (
+                            state.get_info().app.config.width,
+                            state.get_info().app.config.height,
+                        );
+
+                        state.get_info().app.resize(new_size.into())
                     }
                     // The system is out of memory, we should probably quit
                     Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
@@ -101,7 +107,7 @@ pub fn run_app_windowed<S: WindowedAppState + 'static>() -> ! {
             Event::MainEventsCleared => {
                 // RedrawRequested will only trigger once, unless we manually
                 // request it.
-                state.get_window().request_redraw();
+                state.get_info().window.request_redraw();
             }
             _ => {}
         }
@@ -118,10 +124,8 @@ pub struct CanvasAppBundle<S> {
 #[cfg(feature = "html-canvas")]
 impl<S: CanvasAppState> CanvasAppBundle<S> {
     pub fn render(&mut self, delta: f32) {
-        self.state.update(delta);
-
         self.frame.reset();
-        self.state.view(&mut self.frame);
+        self.state.view(&mut self.frame, delta);
 
         match self.app.render(&self.frame) {
             Ok(_) => {}

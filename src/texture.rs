@@ -78,3 +78,10 @@ impl Texture {
         })
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct LoadedTexture {
+    pub(crate) idx: usize,
+    pub(crate) w: u32,
+    pub(crate) h: u32,
+}

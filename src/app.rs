@@ -1,29 +1,37 @@
 use std::iter;
 
 use futures::executor::block_on;
+// use glyphon::{TextAtlas, TextRenderer};
 use image::DynamicImage;
-use wgpu::{util::DeviceExt, Instance, Surface, TextureDescriptor};
+use wgpu::{util::DeviceExt, BindGroupLayout, Instance, Surface, TextureDescriptor};
 use winit::{event::WindowEvent, window::Window};
 
-use crate::{frame::Frame, state::ResourceLoader, texture, vertex::Vertex};
+use crate::{
+    frame::Frame,
+    texture::{self, LoadedTexture},
+    vertex::Vertex,
+};
 
-pub(crate) struct App {
-    pub surface: wgpu::Surface,
-    pub device: wgpu::Device,
-    pub queue: wgpu::Queue,
-    pub config: wgpu::SurfaceConfiguration,
+pub struct App {
+    pub(crate) surface: wgpu::Surface,
+    pub(crate) device: wgpu::Device,
+    pub(crate) queue: wgpu::Queue,
+    pub(crate) config: wgpu::SurfaceConfiguration,
 
-    pub render_pipeline_normal: wgpu::RenderPipeline,
-    pub render_pipeline_additive: wgpu::RenderPipeline,
-    pub render_pipeline_additive_squared_alpha: wgpu::RenderPipeline,
+    pub(crate) render_pipeline_normal: wgpu::RenderPipeline,
+    pub(crate) render_pipeline_additive: wgpu::RenderPipeline,
+    pub(crate) render_pipeline_additive_squared_alpha: wgpu::RenderPipeline,
 
-    pub texture_bind_groups: Vec<wgpu::BindGroup>,
+    // pub(crate) text_atlas: TextAtlas,
+    // pub(crate) text_renderer: TextRenderer,
+    pub(crate) texture_bind_group_layout: BindGroupLayout,
+    pub(crate) texture_bind_groups: Vec<wgpu::BindGroup>,
 
-    pub globals_bind_group: wgpu::BindGroup,
-    pub globals_ubo: wgpu::Buffer,
+    pub(crate) globals_bind_group: wgpu::BindGroup,
+    pub(crate) globals_ubo: wgpu::Buffer,
 
-    pub sample_count: u32,
-    pub multisampled_frame_descriptor: TextureDescriptor<'static>,
+    pub(crate) sample_count: u32,
+    pub(crate) multisampled_frame_descriptor: TextureDescriptor<'static>,
 }
 
 #[repr(C)]
@@ -37,11 +45,11 @@ unsafe impl bytemuck::Pod for Globals {}
 unsafe impl bytemuck::Zeroable for Globals {}
 
 impl App {
-    pub fn new(
+    pub(crate) fn new(
         surface: Surface,
         size: (u32, u32),
         instance: Instance,
-        loader: ResourceLoader,
+        // loader: ResourceLoader,
     ) -> Self {
         let sample_count = 4;
 
@@ -96,8 +104,6 @@ impl App {
             source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/shader.wgsl").into()),
         });
 
-        let mut texture_bind_groups = vec![];
-
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[
@@ -120,26 +126,6 @@ impl App {
                 ],
                 label: Some("texture_bind_group_layout"),
             });
-        for img in &loader.textures {
-            let tex = texture::Texture::from_image(&device, &queue, img, Some("texture")).unwrap();
-
-            let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                layout: &texture_bind_group_layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::TextureView(&tex.view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::Sampler(&tex.sampler),
-                    },
-                ],
-                label: Some("texture_bind_group"),
-            });
-
-            texture_bind_groups.push(bind_group)
-        }
 
         let globals_buffer_byte_size = std::mem::size_of::<Globals>() as u64;
 
@@ -340,7 +326,11 @@ impl App {
                 multiview: None,
             });
 
-        Self {
+        // let mut text_atlas = TextAtlas::new(&device, &queue, swapchain_format);
+        // let mut text_renderer =
+        //     TextRenderer::new(&mut text_atlas, &device, MultisampleState::default(), None);
+
+        let mut out = Self {
             surface,
             device,
             queue,
@@ -348,15 +338,29 @@ impl App {
             render_pipeline_normal,
             render_pipeline_additive,
             render_pipeline_additive_squared_alpha,
-            texture_bind_groups,
+            texture_bind_group_layout,
+            texture_bind_groups: vec![],
             globals_bind_group,
             globals_ubo,
             sample_count,
             multisampled_frame_descriptor,
-        }
+            // text_atlas: Text,
+        };
+
+        use image::io::Reader as ImageReader;
+        use std::io::Cursor;
+        let funny = ImageReader::new(Cursor::new(include_bytes!("./funny.png")))
+            .with_guessed_format()
+            .unwrap()
+            .decode()
+            .unwrap();
+
+        out.load_texture(&funny);
+
+        out
     }
 
-    pub fn new_windowed(window: &Window, loader: ResourceLoader) -> Self {
+    pub(crate) fn new_windowed(window: &Window) -> Self {
         let size = window.inner_size();
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
@@ -366,11 +370,11 @@ impl App {
 
         let surface = unsafe { instance.create_surface(&window) }.unwrap();
 
-        Self::new(surface, (size.width, size.height), instance, loader)
+        Self::new(surface, (size.width, size.height), instance)
     }
     #[cfg(feature = "html-canvas")]
     #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
-    pub fn new_canvas(canvas: web_sys::HtmlCanvasElement, loader: ResourceLoader) -> Self {
+    pub(crate) fn new_canvas(canvas: web_sys::HtmlCanvasElement, loader: ResourceLoader) -> Self {
         let (width, height) = (canvas.width(), canvas.height());
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
@@ -383,7 +387,7 @@ impl App {
         Self::new(surface, (width, height), instance, loader)
     }
 
-    pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+    pub(crate) fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         if new_size.width > 0 && new_size.height > 0 {
             self.config.width = new_size.width;
             self.config.height = new_size.height;
@@ -407,11 +411,11 @@ impl App {
     }
 
     #[allow(unused_variables)]
-    pub fn _input(&mut self, event: &WindowEvent) -> bool {
+    pub(crate) fn _input(&mut self, event: &WindowEvent) -> bool {
         false
     }
 
-    pub fn render(&mut self, frame: &Frame) -> Result<(), wgpu::SurfaceError> {
+    pub(crate) fn render(&mut self, frame: &Frame) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
         let view = output
             .texture
@@ -460,10 +464,6 @@ impl App {
                 usage: wgpu::BufferUsages::INDEX,
             });
 
-        // println!("--------------");
-        // println!("{:#?}", geometry.vertices);
-        // println!("{:#?}", geometry.indices);
-
         self.queue.write_buffer(
             &self.globals_ubo,
             0,
@@ -498,10 +498,10 @@ impl App {
             render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
 
             let num_indices = frame.geometry.indices.len() as u32;
-            for (idx, pass) in frame.draw_chunks.iter().enumerate() {
+            for (idx, pass) in frame.draw_calls.iter().enumerate() {
                 let start = pass.start_index;
                 let end = frame
-                    .draw_chunks
+                    .draw_calls
                     .get(idx + 1)
                     .map(|p| p.start_index)
                     .unwrap_or(num_indices);
@@ -527,5 +527,34 @@ impl App {
         output.present();
 
         Ok(())
+    }
+
+    pub fn load_texture(&mut self, img: &DynamicImage) -> LoadedTexture {
+        let out = LoadedTexture {
+            idx: self.texture_bind_groups.len(),
+            w: img.width(),
+            h: img.height(),
+        };
+
+        let tex =
+            texture::Texture::from_image(&self.device, &self.queue, img, Some("texture")).unwrap();
+
+        let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &self.texture_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&tex.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&tex.sampler),
+                },
+            ],
+            label: Some("texture_bind_group"),
+        });
+
+        self.texture_bind_groups.push(bind_group);
+        out
     }
 }
