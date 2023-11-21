@@ -73,8 +73,8 @@ impl<'a> TextureBuilder<'a> {
 impl<'a> Drop for TextureBuilder<'a> {
     fn drop(&mut self) {
         if let Some(tex) = self.frame.current_texture {
-            let texw = tex.w as f32;
-            let texh = tex.h as f32;
+            let texw = tex.width as f32;
+            let texh = tex.height as f32;
             let (w, h) = if let Some(region) = self.crop {
                 (self.w.unwrap_or(region.2), self.h.unwrap_or(region.3))
             } else {

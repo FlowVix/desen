@@ -532,8 +532,8 @@ impl App {
     pub fn load_texture(&mut self, img: &DynamicImage) -> LoadedTexture {
         let out = LoadedTexture {
             idx: self.texture_bind_groups.len(),
-            w: img.width(),
-            h: img.height(),
+            width: img.width(),
+            height: img.height(),
         };
 
         let tex =
