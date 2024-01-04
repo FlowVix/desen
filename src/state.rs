@@ -1,13 +1,16 @@
-use std::{io::Cursor, path::Path};
-
-use image::DynamicImage;
 use winit::{event::WindowEvent, window::Window};
 
 use crate::{app::App, frame::Frame};
 
-pub trait WindowedAppState: AppState {
-    fn init(info: WindowedAppInfo) -> Self;
-    fn get_info(&mut self) -> &mut WindowedAppInfo;
+pub trait WindowedAppInfo {
+    fn init(app: App, window: Window) -> Self;
+    fn get_app(&mut self) -> &mut App;
+    fn get_window(&mut self) -> &mut Window;
+}
+
+pub trait WindowedAppState<I: WindowedAppInfo>: AppState {
+    fn init(info: I) -> Self;
+    fn get_info(&mut self) -> &mut I;
     fn event(&mut self, event: &WindowEvent);
 }
 #[cfg(feature = "html-canvas")]
@@ -17,12 +20,6 @@ pub trait CanvasAppState: AppState {
 pub trait AppState {
     fn view(&mut self, frame: &mut Frame, delta: f32);
 }
-
-pub struct WindowedAppInfo {
-    pub app: App,
-    pub window: Window,
-}
-
 // #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 // pub struct LoadedTexture {
 //     pub(crate) idx: usize,
