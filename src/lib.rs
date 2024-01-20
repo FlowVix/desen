@@ -134,7 +134,7 @@ impl<S> std::ops::Deref for CanvasAppBundle<S> {
 }
 
 #[cfg(feature = "html-canvas")]
-impl<S: CanvasAppState<_>> CanvasAppBundle<S> {
+impl<S: CanvasAppState<I>, I: CanvasAppInfo> CanvasAppBundle<S> {
     pub fn render(&mut self, delta: f32) {
         self.frame.reset();
         self.state.view(&mut self.frame, delta);
