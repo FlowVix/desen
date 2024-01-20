@@ -181,7 +181,7 @@ where
 #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
 pub fn new_app_canvas<I: CanvasAppInfo, S: CanvasAppState<I>>(
     canvas: web_sys::HtmlCanvasElement,
-) -> CanvasAppBundle<S> {
+) -> CanvasAppBundle<S, I> {
     let app = App::new_canvas(canvas);
 
     let state = S::init(I::init(app));
