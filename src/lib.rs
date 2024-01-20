@@ -160,7 +160,7 @@ impl<S: CanvasAppState<_>> CanvasAppBundle<S> {
 
 #[cfg(feature = "html-canvas")]
 #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
-pub fn new_app_canvas<I: WindowedAppInfo, S: CanvasAppState<I>>(
+pub fn new_app_canvas<I: CanvasAppInfo, S: CanvasAppState<I>>(
     canvas: web_sys::HtmlCanvasElement,
 ) -> CanvasAppBundle<S> {
     let app = App::new_canvas(canvas);
