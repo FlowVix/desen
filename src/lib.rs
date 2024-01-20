@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 
 pub use app::App;
 use frame::Frame;
-use state::{WindowedAppInfo, WindowedAppState};
+use state::{AppState, WindowedAppInfo, WindowedAppState};
 
 #[cfg(feature = "html-canvas")]
 use state::{CanvasAppInfo, CanvasAppState};
@@ -134,7 +134,7 @@ impl<S> std::ops::Deref for CanvasAppBundle<S> {
 }
 
 #[cfg(feature = "html-canvas")]
-impl<S: CanvasAppState<I>, I: CanvasAppInfo> CanvasAppBundle<S> {
+impl<S: AppState> CanvasAppBundle<S> {
     pub fn render(&mut self, delta: f32) {
         self.frame.reset();
         self.state.view(&mut self.frame, delta);
