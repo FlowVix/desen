@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 
 pub use app::App;
 use frame::Frame;
-use state::{AppState, WindowedAppInfo, WindowedAppState};
+use state::{WindowedAppInfo, WindowedAppState};
 
 #[cfg(feature = "html-canvas")]
 use state::{CanvasAppInfo, CanvasAppState};
@@ -134,16 +134,22 @@ impl<S> std::ops::Deref for CanvasAppBundle<S> {
 }
 
 #[cfg(feature = "html-canvas")]
-impl<S: AppState> CanvasAppBundle<S> {
+impl<S: CanvasAppState<I>, I: CanvasAppInfo> CanvasAppBundle<S> {
     pub fn render(&mut self, delta: f32) {
         self.frame.reset();
         self.state.view(&mut self.frame, delta);
 
-        match self.app.render(&self.frame) {
+        match self.get_info().get_app().render(&self.frame) {
             Ok(_) => {}
-            Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => self
-                .app
-                .resize((self.app.config.width, self.app.config.height).into()),
+            Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                self.get_info().get_app().resize(
+                    (
+                        self.get_info().get_app().config.width,
+                        self.get_info().get_app().config.height,
+                    )
+                        .into(),
+                )
+            }
             Err(wgpu::SurfaceError::OutOfMemory) => {
                 println!("out of memory")
             }
