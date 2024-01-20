@@ -13,7 +13,7 @@ use frame::Frame;
 use state::{WindowedAppInfo, WindowedAppState};
 
 #[cfg(feature = "html-canvas")]
-use state::CanvasAppState;
+use state::{CanvasAppInfo, CanvasAppState};
 
 use winit::{
     dpi::PhysicalSize,
