@@ -374,7 +374,7 @@ impl App {
     }
     #[cfg(feature = "html-canvas")]
     #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
-    pub(crate) fn new_canvas(canvas: web_sys::HtmlCanvasElement, loader: ResourceLoader) -> Self {
+    pub(crate) fn new_canvas(canvas: web_sys::HtmlCanvasElement) -> Self {
         let (width, height) = (canvas.width(), canvas.height());
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
@@ -384,7 +384,7 @@ impl App {
 
         let surface = instance.create_surface_from_canvas(canvas).unwrap();
 
-        Self::new(surface, (width, height), instance, loader)
+        Self::new(surface, (width, height), instance)
     }
 
     pub(crate) fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {

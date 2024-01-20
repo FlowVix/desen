@@ -6,7 +6,7 @@
 
 // use crate::ctx::Context;
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 pub use app::App;
 use frame::Frame;
@@ -105,6 +105,9 @@ pub fn run_app_windowed<I: WindowedAppInfo, S: WindowedAppState<I> + 'static>() 
                     // We're ignoring timeouts
                     Err(wgpu::SurfaceError::Timeout) => println!("Surface timeout"),
                 }
+
+                // *control_flow =
+                //     ControlFlow::WaitUntil(Instant::now() + Duration::from_secs_f64(1.0 / 30.0))
             }
             Event::MainEventsCleared => {
                 // RedrawRequested will only trigger once, unless we manually
@@ -119,8 +122,15 @@ pub fn run_app_windowed<I: WindowedAppInfo, S: WindowedAppState<I> + 'static>() 
 #[cfg(feature = "html-canvas")]
 pub struct CanvasAppBundle<S> {
     pub state: S,
-    app: App,
     frame: Frame,
+}
+
+impl<S> std::ops::Deref for CanvasAppBundle<S> {
+    type Target = S;
+
+    fn deref(&self) -> &Self::Target {
+        &self.state
+    }
 }
 
 #[cfg(feature = "html-canvas")]
@@ -140,23 +150,24 @@ impl<S: CanvasAppState> CanvasAppBundle<S> {
             Err(wgpu::SurfaceError::Timeout) => println!("Surface timeout"),
         }
     }
-    pub fn resize(&mut self, width: u32, height: u32) {
-        self.app.resize((width, height).into());
-    }
-    pub fn get_size(&mut self) -> (u32, u32) {
-        (self.app.config.width, self.app.config.height)
-    }
+    // pub fn resize(&mut self, width: u32, height: u32) {
+    //     self.app.resize((width, height).into());
+    // }
+    // pub fn get_size(&mut self) -> (u32, u32) {
+    //     (self.app.config.width, self.app.config.height)
+    // }
 }
 
 #[cfg(feature = "html-canvas")]
 #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
-pub fn new_app_canvas<S: CanvasAppState>(canvas: web_sys::HtmlCanvasElement) -> CanvasAppBundle<S> {
-    let mut loader = ResourceLoader::new();
-    let state = S::init(&mut loader);
+pub fn new_app_canvas<I: WindowedAppInfo, S: CanvasAppState<I>>(
+    canvas: web_sys::HtmlCanvasElement,
+) -> CanvasAppBundle<S> {
+    let app = App::new_canvas(canvas);
 
-    let app = App::new_canvas(canvas, loader);
+    let state = S::init(I::init(app));
 
     let frame = Frame::new();
 
-    CanvasAppBundle { state, app, frame }
+    CanvasAppBundle { state, frame }
 }
