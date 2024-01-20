@@ -188,5 +188,9 @@ pub fn new_app_canvas<I: CanvasAppInfo, S: CanvasAppState<I>>(
 
     let frame = Frame::new();
 
-    CanvasAppBundle { state, frame }
+    CanvasAppBundle {
+        state,
+        frame,
+        _p: PhantomData,
+    }
 }
