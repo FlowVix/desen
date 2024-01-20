@@ -6,6 +6,7 @@
 
 // use crate::ctx::Context;
 
+use std::marker::PhantomData;
 use std::time::{Duration, Instant};
 
 pub use app::App;
@@ -120,36 +121,47 @@ pub fn run_app_windowed<I: WindowedAppInfo, S: WindowedAppState<I> + 'static>() 
 }
 
 #[cfg(feature = "html-canvas")]
-pub struct CanvasAppBundle<S> {
+pub struct CanvasAppBundle<S, I> {
     pub state: S,
     frame: Frame,
+    _p: PhantomData<I>,
 }
 
 #[cfg(feature = "html-canvas")]
-impl<S> std::ops::Deref for CanvasAppBundle<S> {
+impl<S, I> std::ops::Deref for CanvasAppBundle<S, I> {
     type Target = S;
 
     fn deref(&self) -> &Self::Target {
         &self.state
     }
 }
+#[cfg(feature = "html-canvas")]
+impl<S, I> std::ops::DerefMut for CanvasAppBundle<S, I> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.state
+    }
+}
 
 #[cfg(feature = "html-canvas")]
-impl<S: CanvasAppState<I>, I: CanvasAppInfo> CanvasAppBundle<S> {
+impl<S, I: CanvasAppInfo> CanvasAppBundle<S, I>
+where
+    S: CanvasAppState<I>,
+{
     pub fn render(&mut self, delta: f32) {
+        let frame_p = &self.frame as *const _;
+
         self.frame.reset();
         self.state.view(&mut self.frame, delta);
 
-        match self.get_info().get_app().render(&self.frame) {
+        match self.get_info().get_app().render(unsafe { &*frame_p }) {
             Ok(_) => {}
             Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
-                self.get_info().get_app().resize(
-                    (
-                        self.get_info().get_app().config.width,
-                        self.get_info().get_app().config.height,
-                    )
-                        .into(),
+                let v = (
+                    self.get_info().get_app().config.width,
+                    self.get_info().get_app().config.height,
                 )
+                    .into();
+                self.get_info().get_app().resize(v)
             }
             Err(wgpu::SurfaceError::OutOfMemory) => {
                 println!("out of memory")
