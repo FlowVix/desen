@@ -125,6 +125,7 @@ pub struct CanvasAppBundle<S> {
     frame: Frame,
 }
 
+#[cfg(feature = "html-canvas")]
 impl<S> std::ops::Deref for CanvasAppBundle<S> {
     type Target = S;
 
