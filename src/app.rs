@@ -16,7 +16,7 @@ pub struct App {
     pub(crate) surface: wgpu::Surface,
     pub(crate) device: wgpu::Device,
     pub(crate) queue: wgpu::Queue,
-    pub(crate) config: wgpu::SurfaceConfiguration,
+    pub config: wgpu::SurfaceConfiguration,
 
     pub(crate) render_pipeline_normal: wgpu::RenderPipeline,
     pub(crate) render_pipeline_additive: wgpu::RenderPipeline,
@@ -387,7 +387,7 @@ impl App {
         Self::new(surface, (width, height), instance)
     }
 
-    pub(crate) fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+    pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         if new_size.width > 0 && new_size.height > 0 {
             self.config.width = new_size.width;
             self.config.height = new_size.height;
