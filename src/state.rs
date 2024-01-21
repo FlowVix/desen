@@ -3,24 +3,20 @@ use winit::{event::WindowEvent, window::Window};
 use crate::{app::App, frame::Frame};
 
 pub trait WindowedAppInfo {
-    fn init(app: App, window: Window) -> Self;
     fn get_app(&mut self) -> &mut App;
     fn get_window(&mut self) -> &mut Window;
 }
 pub trait WindowedAppState<I: WindowedAppInfo>: AppState {
-    fn init(info: I) -> Self;
     fn get_info(&mut self) -> &mut I;
     fn event(&mut self, event: &WindowEvent);
 }
 
 #[cfg(feature = "html-canvas")]
 pub trait CanvasAppInfo {
-    fn init(app: App) -> Self;
     fn get_app(&mut self) -> &mut App;
 }
 #[cfg(feature = "html-canvas")]
 pub trait CanvasAppState<I: CanvasAppInfo>: AppState {
-    fn init(info: I) -> Self;
     fn get_info(&mut self) -> &mut I;
 }
 pub trait AppState {

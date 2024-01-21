@@ -33,7 +33,13 @@ mod vertex;
 
 pub use winit::*;
 
-pub fn run_app_windowed<I: WindowedAppInfo, S: WindowedAppState<I> + 'static>() -> ! {
+pub fn run_app_windowed<
+    I: WindowedAppInfo,
+    S: WindowedAppState<I> + 'static,
+    F: FnOnce(App, winit::window::Window) -> S,
+>(
+    init_state: F,
+) -> ! {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_inner_size(PhysicalSize::new(600, 600))
@@ -45,7 +51,7 @@ pub fn run_app_windowed<I: WindowedAppInfo, S: WindowedAppState<I> + 'static>() 
     // let mut loader = ResourceLoader::new();
     let app = App::new_windowed(&window);
 
-    let mut state = S::init(I::init(app, window));
+    let mut state = init_state(app, window);
 
     let time = Instant::now();
     let mut last_time = 0.0;
@@ -179,12 +185,13 @@ where
 
 #[cfg(feature = "html-canvas")]
 #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
-pub fn new_app_canvas<I: CanvasAppInfo, S: CanvasAppState<I>>(
+pub fn new_app_canvas<I: CanvasAppInfo, S: CanvasAppState<I>, F: FnOnce(App) -> S>(
     canvas: web_sys::HtmlCanvasElement,
+    init_state: F,
 ) -> CanvasAppBundle<S, I> {
     let app = App::new_canvas(canvas);
 
-    let state = S::init(I::init(app));
+    let state = init_state(app);
 
     let frame = Frame::new();
 
