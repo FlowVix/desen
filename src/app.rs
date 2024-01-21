@@ -355,7 +355,7 @@ impl App {
             .decode()
             .unwrap();
 
-        out.load_texture(&funny);
+        out.load_texture(&funny, true);
 
         out
     }
@@ -529,15 +529,21 @@ impl App {
         Ok(())
     }
 
-    pub fn load_texture(&mut self, img: &DynamicImage) -> LoadedTexture {
+    pub fn load_texture(&mut self, img: &DynamicImage, nearest_neighbor: bool) -> LoadedTexture {
         let out = LoadedTexture {
             idx: self.texture_bind_groups.len(),
             width: img.width(),
             height: img.height(),
         };
 
-        let tex =
-            texture::Texture::from_image(&self.device, &self.queue, img, Some("texture")).unwrap();
+        let tex = texture::Texture::from_image(
+            &self.device,
+            &self.queue,
+            img,
+            Some("texture"),
+            nearest_neighbor,
+        )
+        .unwrap();
 
         let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &self.texture_bind_group_layout,
