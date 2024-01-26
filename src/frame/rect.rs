@@ -99,6 +99,7 @@ impl<'a> Drop for RectBuilder<'a> {
                             VertexConstructor::new_only_color(
                                 self.frame.fill_color,
                                 self.frame.transform,
+                                self.frame.current_texture_group,
                             ),
                         ),
                     )
@@ -116,6 +117,7 @@ impl<'a> Drop for RectBuilder<'a> {
                             VertexConstructor::new_only_color(
                                 self.frame.stroke_color,
                                 self.frame.transform,
+                                self.frame.current_texture_group,
                             ),
                         ),
                     )
@@ -134,6 +136,7 @@ impl<'a> Drop for RectBuilder<'a> {
                             VertexConstructor::new_only_color(
                                 self.frame.fill_color,
                                 self.frame.transform,
+                                self.frame.current_texture_group,
                             ),
                         ),
                     )
@@ -151,6 +154,7 @@ impl<'a> Drop for RectBuilder<'a> {
                             VertexConstructor::new_only_color(
                                 self.frame.stroke_color,
                                 self.frame.transform,
+                                self.frame.current_texture_group,
                             ),
                         ),
                     )

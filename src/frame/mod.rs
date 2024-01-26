@@ -4,23 +4,12 @@ pub mod line;
 pub mod rect;
 pub mod texture;
 
-use lyon::{
-    algorithms::rounded_polygon::add_rounded_polygon,
-    geom::LineSegment,
-    lyon_tessellation::{
-        BuffersBuilder, FillOptions, FillTessellator, StrokeOptions, StrokeTessellator,
-        VertexBuffers,
-    },
-    math::{point, vector, Angle, Box2D},
-    path::{Path, Polygon, NO_ATTRIBUTES},
+use lyon::lyon_tessellation::{
+    FillOptions, FillTessellator, StrokeOptions, StrokeTessellator, VertexBuffers,
 };
 use nalgebra::Matrix3;
 
-use crate::{
-    color::Color,
-    texture::LoadedTexture,
-    vertex::{Vertex, VertexConstructor},
-};
+use crate::{color::Color, texture::LoadedTexture, vertex::Vertex};
 
 use self::{
     circle::CircleBuilder, ellipse::EllipseBuilder, line::LineBuilder, rect::RectBuilder,
@@ -38,7 +27,7 @@ pub enum BlendMode {
 pub(crate) struct DrawCall {
     pub(crate) start_index: u32,
     pub(crate) blend_mode: Option<BlendMode>,
-    pub(crate) texture: Option<LoadedTexture>,
+    pub(crate) texture: Option<(LoadedTexture, u32)>,
 }
 
 pub struct Frame {
@@ -61,7 +50,8 @@ pub struct Frame {
     pub(crate) draw_calls: Vec<DrawCall>,
 
     pub(crate) current_blend_mode: BlendMode,
-    pub(crate) current_texture: Option<LoadedTexture>,
+    pub(crate) current_textures: [Option<LoadedTexture>; 3],
+    pub(crate) current_texture_group: u32,
 }
 
 impl Frame {
@@ -84,7 +74,8 @@ impl Frame {
                 texture: None,
             }],
             current_blend_mode: BlendMode::Normal,
-            current_texture: None,
+            current_textures: [None; 3],
+            current_texture_group: 0,
             // font_system: FontSystem::new(),
             // swash_cache: SwashCache::new(),
         }
@@ -107,7 +98,8 @@ impl Frame {
             texture: None,
         });
         self.current_blend_mode = BlendMode::Normal;
-        self.current_texture = None;
+        self.current_textures = [None; 3];
+        self.current_texture_group = 0;
     }
 
     pub fn tolerance(&mut self, t: f32) {
@@ -221,9 +213,15 @@ impl Frame {
         self.draw_calls.push(DrawCall {
             start_index: self.geometry.indices.len() as u32,
             blend_mode: None,
-            texture: Some(tex),
+            texture: Some((tex, self.current_texture_group)),
         });
-        self.current_texture = Some(tex)
+        self.current_textures[self.current_texture_group as usize] = Some(tex)
+    }
+    pub fn set_current_texture_group(&mut self, group: u32) {
+        if group > 2 {
+            panic!("Only texture groups 0..=2 are allowed")
+        }
+        self.current_texture_group = group;
     }
 
     pub fn get_transform(&self) -> FrameTransform {

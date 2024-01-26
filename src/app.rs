@@ -177,7 +177,12 @@ impl App {
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&globals_bind_group_layout, &texture_bind_group_layout],
+                bind_group_layouts: &[
+                    &globals_bind_group_layout,
+                    &texture_bind_group_layout,
+                    &texture_bind_group_layout,
+                    &texture_bind_group_layout,
+                ],
                 push_constant_ranges: &[],
             });
 
@@ -494,6 +499,8 @@ impl App {
 
             render_pass.set_bind_group(0, &self.globals_bind_group, &[]);
             render_pass.set_bind_group(1, &self.texture_bind_groups[0], &[]);
+            render_pass.set_bind_group(2, &self.texture_bind_groups[0], &[]);
+            render_pass.set_bind_group(3, &self.texture_bind_groups[0], &[]);
             render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
             render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
 
@@ -515,14 +522,13 @@ impl App {
                         }
                     });
                 }
-                if let Some(tex) = pass.texture {
-                    render_pass.set_bind_group(1, &self.texture_bind_groups[tex.idx], &[]);
+                if let Some((tex, group)) = pass.texture {
+                    render_pass.set_bind_group(group + 1, &self.texture_bind_groups[tex.idx], &[]);
                 }
 
                 render_pass.draw_indexed(start..end, 0, 0..1);
             }
         }
-
         self.queue.submit(iter::once(encoder.finish()));
         output.present();
 

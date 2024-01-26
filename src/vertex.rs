@@ -9,6 +9,7 @@ pub(crate) struct Vertex {
     // pub(crate) _pad: f32,
     pub(crate) tex_coords: [f32; 2],
     pub(crate) mode: u32,
+    pub(crate) bind_group: u32,
 }
 impl Vertex {
     pub(crate) fn desc() -> wgpu::VertexBufferLayout<'static> {
@@ -36,6 +37,11 @@ impl Vertex {
                     shader_location: 3,
                     format: wgpu::VertexFormat::Uint32,
                 },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 9]>() as wgpu::BufferAddress,
+                    shader_location: 4,
+                    format: wgpu::VertexFormat::Uint32,
+                },
             ],
         }
     }
@@ -59,45 +65,54 @@ pub(crate) struct VertexConstructor {
     pub(crate) transform: Matrix3<f32>,
     pub(crate) tex_coords: (f32, f32),
     pub(crate) mode: VertexMode,
+    pub(crate) bind_group: u32,
 }
 
 impl VertexConstructor {
-    pub fn new_only_color(color: (f32, f32, f32, f32), transform: Matrix3<f32>) -> Self {
+    pub fn new_only_color(
+        color: (f32, f32, f32, f32),
+        transform: Matrix3<f32>,
+        bind_group: u32,
+    ) -> Self {
         Self {
             color,
             transform,
             tex_coords: (0.0, 0.0),
             mode: VertexMode::OnlyColor,
+            bind_group,
         }
     }
-    pub fn new_textured(tex_coords: (f32, f32), transform: Matrix3<f32>) -> Self {
+    pub fn new_textured(tex_coords: (f32, f32), transform: Matrix3<f32>, bind_group: u32) -> Self {
         Self {
             color: (0.0, 0.0, 0.0, 0.0),
             transform,
             tex_coords,
             mode: VertexMode::Textured,
+            bind_group,
         }
     }
     pub fn new_textured_tinted(
         color: (f32, f32, f32, f32),
         tex_coords: (f32, f32),
         transform: Matrix3<f32>,
+        bind_group: u32,
     ) -> Self {
         Self {
             color,
             transform,
             tex_coords,
             mode: VertexMode::TexturedAndTinted,
+            bind_group,
         }
     }
     pub fn with_pos(self, x: f32, y: f32) -> Vertex {
         let v = self.transform * Vector3::new(x, y, 1.0);
-
         Vertex {
             position: [v.x, v.y],
             color: [self.color.0, self.color.1, self.color.2, self.color.3],
             tex_coords: [self.tex_coords.0, self.tex_coords.1],
             mode: self.mode as u32,
+            bind_group: self.bind_group,
         }
     }
 }

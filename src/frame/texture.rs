@@ -72,7 +72,7 @@ impl<'a> TextureBuilder<'a> {
 
 impl<'a> Drop for TextureBuilder<'a> {
     fn drop(&mut self) {
-        if let Some(tex) = self.frame.current_texture {
+        if let Some(tex) = self.frame.current_textures[self.frame.current_texture_group as usize] {
             let texw = tex.width as f32;
             let texh = tex.height as f32;
             let (w, h) = if let Some(region) = self.crop {
@@ -102,13 +102,30 @@ impl<'a> Drop for TextureBuilder<'a> {
 
             if !self.tinted {
                 self.frame.geometry.vertices.extend(&[
-                    VertexConstructor::new_textured((x0, y1), self.frame.transform).with_pos(x, y),
-                    VertexConstructor::new_textured((x1, y1), self.frame.transform)
-                        .with_pos(x + w, y),
-                    VertexConstructor::new_textured((x1, y0), self.frame.transform)
-                        .with_pos(x + w, y + h),
-                    VertexConstructor::new_textured((x0, y0), self.frame.transform)
-                        .with_pos(x, y + h),
+                    VertexConstructor::new_textured(
+                        (x0, y1),
+                        self.frame.transform,
+                        self.frame.current_texture_group,
+                    )
+                    .with_pos(x, y),
+                    VertexConstructor::new_textured(
+                        (x1, y1),
+                        self.frame.transform,
+                        self.frame.current_texture_group,
+                    )
+                    .with_pos(x + w, y),
+                    VertexConstructor::new_textured(
+                        (x1, y0),
+                        self.frame.transform,
+                        self.frame.current_texture_group,
+                    )
+                    .with_pos(x + w, y + h),
+                    VertexConstructor::new_textured(
+                        (x0, y0),
+                        self.frame.transform,
+                        self.frame.current_texture_group,
+                    )
+                    .with_pos(x, y + h),
                 ]);
             } else {
                 self.frame.geometry.vertices.extend(&[
@@ -116,24 +133,28 @@ impl<'a> Drop for TextureBuilder<'a> {
                         self.frame.fill_color,
                         (x0, y1),
                         self.frame.transform,
+                        self.frame.current_texture_group,
                     )
                     .with_pos(x, y),
                     VertexConstructor::new_textured_tinted(
                         self.frame.fill_color,
                         (x1, y1),
                         self.frame.transform,
+                        self.frame.current_texture_group,
                     )
                     .with_pos(x + w, y),
                     VertexConstructor::new_textured_tinted(
                         self.frame.fill_color,
                         (x1, y0),
                         self.frame.transform,
+                        self.frame.current_texture_group,
                     )
                     .with_pos(x + w, y + h),
                     VertexConstructor::new_textured_tinted(
                         self.frame.fill_color,
                         (x0, y0),
                         self.frame.transform,
+                        self.frame.current_texture_group,
                     )
                     .with_pos(x, y + h),
                 ]);
