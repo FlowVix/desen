@@ -6,7 +6,7 @@ use std::{f32::consts::PI, mem::swap};
 use itertools::Itertools;
 
 use glam::{Affine2, Mat2, Vec2, vec2};
-use sense::{Interactions, SenseSave, SenseShape, SenseShapeType};
+use sense::{Interactions, SenseSave, SenseShape, SenseShapeType, test_in_shape};
 
 use crate::{
     shaders::wgsl_main::structs::{InstanceInput, VertexInput},
@@ -296,19 +296,6 @@ impl Stage {
     }
 }
 
-fn test_in_shape(shape: SenseShape, mouse: Vec2) -> bool {
-    let pos = shape.inv_transform.transform_point2(mouse);
-    let [x, y] = [(shape.x, shape.w), (shape.y, shape.h)]
-        .map(|(p, d)| if shape.centered { p - d / 2.0 } else { p });
-
-    match shape.typ {
-        SenseShapeType::Rect => {
-            pos.x >= x && pos.y >= y && pos.x <= (x + shape.w) && pos.y <= (y + shape.h)
-        }
-        SenseShapeType::Ellipse => todo!(),
-    }
-}
-
 #[bon::bon]
 impl Stage {
     #[builder(finish_fn = draw)]
@@ -388,6 +375,23 @@ impl Stage {
         }
     }
 
+    fn add_sense(&mut self, shape: SenseShape, id: u64) -> Interactions<bool> {
+        self.build_senses.push(SenseSave { shape, id });
+
+        let in_shape = test_in_shape(shape, self.mouse_pos);
+
+        Interactions {
+            hovering: self.interactions.hovering.is_some_and(|v| v == id),
+            hover_started: self.interactions.hover_started.is_some_and(|v| v == id),
+            hover_ended: self.interactions.hover_ended.is_some_and(|v| v == id),
+            hovering_bypass: in_shape,
+
+            holding: self.interactions.holding.is_some_and(|v| v == id),
+            clicked: self.interactions.clicked.is_some_and(|v| v == id),
+            click_ended: self.interactions.click_ended.is_some_and(|v| v == id),
+        }
+    }
+
     #[builder(finish_fn = test)]
     pub fn rect_sense(
         &mut self,
@@ -409,19 +413,30 @@ impl Stage {
             inv_transform: self.transform.inverse(),
         };
 
-        self.build_senses.push(SenseSave { shape, id });
+        self.add_sense(shape, id)
+    }
 
-        let in_shape = test_in_shape(shape, self.mouse_pos);
+    #[builder(finish_fn = test)]
+    pub fn ellipse_sense(
+        &mut self,
+        #[builder(default = 0.0)] x: f32,
+        #[builder(default = 0.0)] y: f32,
+        #[builder(default = 0.0)] w: f32,
+        #[builder(default = 0.0)] h: f32,
+        #[builder(default = false)] centered: bool,
+    ) -> Interactions<bool> {
+        let id = self.new_sense_id();
 
-        Interactions {
-            hovering: self.interactions.hovering.is_some_and(|v| v == id),
-            hover_started: self.interactions.hover_started.is_some_and(|v| v == id),
-            hover_ended: self.interactions.hover_ended.is_some_and(|v| v == id),
-            hovering_bypass: in_shape,
+        let shape = SenseShape {
+            typ: SenseShapeType::Ellipse,
+            x,
+            y,
+            w,
+            h,
+            centered,
+            inv_transform: self.transform.inverse(),
+        };
 
-            holding: self.interactions.holding.is_some_and(|v| v == id),
-            clicked: self.interactions.clicked.is_some_and(|v| v == id),
-            click_ended: self.interactions.click_ended.is_some_and(|v| v == id),
-        }
+        self.add_sense(shape, id)
     }
 }

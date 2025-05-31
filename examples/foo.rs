@@ -1,4 +1,5 @@
 use desen::{AppData, AppState, Stage, run_app};
+use dioxus_devtools::subsecond;
 
 struct State {
     time: f32,
@@ -21,15 +22,15 @@ impl AppState for State {
 
         let check = |s: &mut Stage, x: f32, y: f32, w: f32, h: f32, msg: &str| {
             s.rect().x(x).y(y).w(w).h(h).draw();
-            if s.rect_sense().x(x).y(y).w(w).h(h).test().click_ended {
+            if s.ellipse_sense().x(x).y(y).w(w).h(h).test().clicked {
                 println!("{}", msg);
             }
         };
 
         s.fill_color = [1.0, 0.0, 0.0, 1.0];
-        check(s, 0.0, 0.0, 100.0, 100.0, "A");
-        s.fill_color = [0.0, 0.0, 1.0, 1.0];
-        check(s, 40.0, 20.0, 100.0, 100.0, "BBB");
+        check(s, 0.0, 0.0, 300.0, 100.0, "A");
+        // s.fill_color = [0.0, 0.0, 1.0, 1.0];
+        // check(s, 40.0, 20.0, 100.0, 100.0, "BBB");
 
         // s.tri()
         //     .a([0.0, 0.0])
@@ -43,5 +44,6 @@ impl AppState for State {
 }
 
 fn main() {
+    dioxus_devtools::connect_subsecond();
     run_app::<State>(100);
 }

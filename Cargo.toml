@@ -20,3 +20,19 @@ bon = "3.6.3"
 
 [build-dependencies]
 wgsl-grease = { git = "https://github.com/OnyxUI/wgsl-grease" }
+
+
+[dev-dependencies]
+dioxus-devtools = "=0.7.0-alpha.1"
+
+[profile]
+
+[profile.wasm-dev]
+inherits = "dev"
+opt-level = 1
+
+[profile.server-dev]
+inherits = "dev"
+
+[profile.android-dev]
+inherits = "dev"
