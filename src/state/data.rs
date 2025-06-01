@@ -23,9 +23,9 @@ pub struct TextureInfo {
     pub(crate) height: u32,
 }
 impl TextureInfo {
-    pub fn key(&self) -> TextureKey {
-        self.key
-    }
+    // pub fn key(&self) -> TextureKey {
+    //     self.key
+    // }
     pub fn width(&self) -> u32 {
         self.width
     }

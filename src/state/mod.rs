@@ -123,6 +123,9 @@ where
                         .gpu_data
                         .render(&app.stage, &app.data.loaded_textures);
 
+                    app.data.gpu_data.mask_atlas.clear_in_use();
+                    app.data.gpu_data.color_atlas.clear_in_use();
+
                     app.data.window.request_redraw();
                 }
                 winit::event::WindowEvent::CursorMoved { position, .. } => {

@@ -2,10 +2,16 @@ use wgpu::util::DeviceExt;
 
 use crate::{
     Stage,
-    render::{SAMPLE_COUNT, texture::Texture},
+    render::{
+        SAMPLE_COUNT,
+        text::{atlas::create_atlases_bind_group, glyph::ContentType},
+        texture::Texture,
+    },
     shaders::wgsl_main,
     state::data::TextureMap,
 };
+
+use super::text::atlas::GlyphAtlas;
 
 pub struct GPUData {
     pub surface: wgpu::Surface<'static>,
@@ -24,6 +30,13 @@ pub struct GPUData {
     pub bind_group_0: wgsl_main::globals::BindGroup0,
 
     pub dummy_texture: wgsl_main::globals::BindGroup1,
+
+    pub font_system: cosmic_text::FontSystem,
+    pub swash_cache: cosmic_text::SwashCache,
+
+    pub mask_atlas: GlyphAtlas,
+    pub color_atlas: GlyphAtlas,
+    pub text_atlas_bind_group: wgsl_main::globals::BindGroup2,
 }
 
 impl GPUData {
@@ -185,6 +198,10 @@ impl GPUData {
             ),
         );
 
+        let mask_atlas = GlyphAtlas::new(&device, ContentType::Mask);
+        let color_atlas = GlyphAtlas::new(&device, ContentType::Color);
+        let text_atlas_bind_group = create_atlases_bind_group(&device, &mask_atlas, &color_atlas);
+
         Self {
             dummy_texture: {
                 let tex = Texture::blank(
@@ -216,6 +233,11 @@ impl GPUData {
             main_pipeline,
             vertex_buffer,
             index_buffer,
+            mask_atlas,
+            color_atlas,
+            text_atlas_bind_group,
+            font_system: cosmic_text::FontSystem::new(),
+            swash_cache: cosmic_text::SwashCache::new(),
         }
     }
 
@@ -303,6 +325,7 @@ impl GPUData {
                 render_pass.set_pipeline(&self.main_pipeline);
                 render_pass.set_bind_group(0, self.bind_group_0.get_bind_group(), &[]);
                 render_pass.set_bind_group(1, self.dummy_texture.get_bind_group(), &[]);
+                render_pass.set_bind_group(2, self.text_atlas_bind_group.get_bind_group(), &[]);
                 render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
                 render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
                 render_pass

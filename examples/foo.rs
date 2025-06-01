@@ -63,22 +63,31 @@ impl AppState for State {
     }
 
     fn render(&mut self, s: &mut Stage, delta: f64, data: &mut AppData) {
-        self.temps.start();
+        // self.temps.start();
 
-        self.button(s, 0.0, 100.0, 100.0, 50.0, |slef| {
-            slef.show = !slef.show;
-        });
+        // self.button(s, 0.0, 100.0, 100.0, 50.0, |slef| {
+        //     slef.show = !slef.show;
+        // });
 
-        if self.show {
-            s.fill_color = [1.0, 0.0, 0.0, 1.0];
+        // if self.show {
+        //     s.fill_color = [1.0, 0.0, 0.0, 1.0];
 
-            let v = self.temps.temp(69, || 0.0);
-            *v += 0.5;
+        //     let v = self.temps.temp(69, || 0.0);
+        //     *v += 0.5;
 
-            s.rect().x(*v).w(50.0).h(50.0).draw();
-        }
+        //     s.rect().x(*v).w(50.0).h(50.0).draw();
+        // }
 
-        self.temps.finish();
+        // self.temps.finish();
+
+        s.fill_color = [0.2, 0.2, 0.2, 1.0];
+        s.rect().w(150.0 + self.time * 50.0).h(-500.0).draw();
+        s.fill_color = [1.0; 4];
+        s.text()
+            .app_data(data)
+            .text("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt 😍😍😍😍😂😂\n\n\nhello hello hello hello hello hello ")
+            .w(150.0 + self.time * 50.0)
+            .draw();
     }
 }
 

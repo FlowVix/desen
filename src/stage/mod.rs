@@ -15,6 +15,8 @@ use glam::{Affine2, Mat2, Vec2, vec2};
 use sense::{Interactions, SenseSave, SenseShape, SenseShapeType, test_in_shape};
 
 use crate::{
+    AppData,
+    render::text::{find_closest_attrs, glyph::prepare_glyph},
     shaders::wgsl_main::structs::{InstanceInput, VertexInput},
     state::data::{TextureInfo, TextureKey},
 };
@@ -233,6 +235,9 @@ impl Stage {
             self.current_blend_mode = mode;
         }
     }
+    pub fn get_blend_mode(&self) -> BlendMode {
+        self.current_blend_mode
+    }
     pub fn set_texture(&mut self, texture: TextureInfo) {
         if self.current_texture != Some(texture) {
             self.draw_calls.push(DrawCall {
@@ -242,6 +247,9 @@ impl Stage {
             });
             self.current_texture = Some(texture);
         }
+    }
+    pub fn get_texture(&self) -> Option<TextureInfo> {
+        self.current_texture
     }
 
     pub(crate) fn find_top_old_sense(&self) -> Option<SenseSave> {
@@ -282,6 +290,7 @@ impl Stage {
             self.transform.matrix2.x_axis.to_array(),
             self.transform.matrix2.y_axis.to_array(),
             self.transform.translation.to_array(),
+            0,
         ));
     }
 
@@ -386,51 +395,59 @@ impl Stage {
             self.draw_stroke(points.into_iter());
         }
     }
-    // #[builder(finish_fn = draw)]
-    // pub fn rounded_rect(
-    //     &mut self,
-    //     #[builder(default = 0.0)] x: f32,
-    //     #[builder(default = 0.0)] y: f32,
-    //     #[builder(default = 0.0)] w: f32,
-    //     #[builder(default = 0.0)] h: f32,
-    //     #[builder(default = 0.0)] tl: f32,
-    //     #[builder(default = 0.0)] tr: f32,
-    //     #[builder(default = 0.0)] br: f32,
-    //     #[builder(default = 0.0)] bl: f32,
-    //     #[builder(default = false)] centered: bool,
-    // ) {
-    //     let mut points = [[0.0, 0.0], [w, 0.0], [w, h], [0.0, h]].map(|[p0, p1]| [p0 + x, p1 + y]);
+    #[builder(finish_fn = draw)]
+    pub fn text<'a>(
+        &mut self,
+        app_data: &mut AppData,
+        #[builder(default = 0.0)] x: f32,
+        #[builder(default = 0.0)] y: f32,
+        w: Option<f32>,
+        h: Option<f32>,
+        text: impl AsRef<str>,
+        #[builder(default = cosmic_text::Metrics::relative(16.0, 1.3))]
+        metrics: cosmic_text::Metrics,
+        #[builder(default = cosmic_text::Family::SansSerif)] family: cosmic_text::Family<'a>,
+        #[builder(default = cosmic_text::Weight::NORMAL)] weight: cosmic_text::Weight,
+        #[builder(default = cosmic_text::Style::Normal)] style: cosmic_text::Style,
+        #[builder(default = cosmic_text::Stretch::Normal)] stretch: cosmic_text::Stretch,
+    ) {
+        let attrs = find_closest_attrs(
+            app_data.gpu_data.font_system.db(),
+            family,
+            weight,
+            style,
+            stretch,
+        );
 
-    //     if centered {
-    //         for i in &mut points {
-    //             i[0] -= w / 2.0;
-    //             i[1] -= h / 2.0;
-    //         }
-    //     }
-    //     if self.draw_fill {
-    //         let color = self.fill_color;
+        let mut buffer = cosmic_text::Buffer::new(&mut app_data.gpu_data.font_system, metrics);
 
-    //         self.tri()
-    //             .a(points[0])
-    //             .b(points[1])
-    //             .c(points[2])
-    //             .color_a(color)
-    //             .color_b(color)
-    //             .color_c(color)
-    //             .draw();
-    //         self.tri()
-    //             .a(points[2])
-    //             .b(points[3])
-    //             .c(points[0])
-    //             .color_a(color)
-    //             .color_b(color)
-    //             .color_c(color)
-    //             .draw();
-    //     }
-    //     if self.draw_stroke {
-    //         self.draw_stroke(points.into_iter());
-    //     }
-    // }
+        buffer.set_size(&mut app_data.gpu_data.font_system, w, h);
+        buffer.set_text(
+            &mut app_data.gpu_data.font_system,
+            text.as_ref(),
+            &attrs,
+            cosmic_text::Shaping::Advanced,
+        );
+
+        buffer.shape_until_scroll(&mut app_data.gpu_data.font_system, true);
+
+        for run in buffer.layout_runs() {
+            for glyph in run.glyphs {
+                let physical = glyph.physical((0.0, 0.0), 1.0);
+
+                if let Some(instances) = prepare_glyph(
+                    physical,
+                    run.line_y,
+                    &mut app_data.gpu_data,
+                    self.fill_color,
+                    self.transform,
+                ) {
+                    self.instances.extend(instances);
+                    // self.push_rect_direct(rect);
+                }
+            }
+        }
+    }
 
     fn add_sense(&mut self, shape: SenseShape, id: u64) -> Interactions<bool> {
         self.build_senses.push(SenseSave { shape, id });
