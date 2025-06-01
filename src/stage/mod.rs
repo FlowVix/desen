@@ -1,7 +1,13 @@
 pub mod color;
 pub mod sense;
 
-use std::{f32::consts::PI, mem::swap};
+use std::{
+    any::Any,
+    collections::{HashMap, HashSet},
+    f32::consts::PI,
+    mem::swap,
+    rc::Rc,
+};
 
 use itertools::Itertools;
 
@@ -53,6 +59,10 @@ pub struct Stage {
     pub(crate) sense_id_ctr: u64,
 
     pub(crate) interactions: Interactions<Option<u64>>,
+
+    pub(crate) temp_states: HashMap<Rc<str>, Box<dyn Any>>,
+    pub(crate) marked_state_ids: HashSet<Rc<str>>,
+    pub(crate) safe_state_ids: HashSet<Rc<str>>,
 }
 
 impl Stage {
@@ -83,6 +93,9 @@ impl Stage {
                 clicked: None,
                 click_ended: None,
             },
+            temp_states: HashMap::new(),
+            marked_state_ids: HashSet::new(),
+            safe_state_ids: HashSet::new(),
         };
         out.reset();
         out
@@ -114,6 +127,9 @@ impl Stage {
         self.build_senses.clear();
 
         self.sense_id_ctr = 0;
+
+        swap(&mut self.marked_state_ids, &mut self.safe_state_ids);
+        self.safe_state_ids.clear();
     }
     pub(crate) fn update_interactions(&mut self) {
         let old = self.interactions;
@@ -147,6 +163,21 @@ impl Stage {
         let v = self.sense_id_ctr;
         self.sense_id_ctr += 1;
         v
+    }
+    pub fn temp<S: 'static>(&mut self, id: impl Into<Rc<str>>, init_fn: impl Fn() -> S) -> &mut S {
+        let id = id.into();
+        self.marked_state_ids.remove(&id);
+        self.safe_state_ids.insert(id.clone());
+        let v = self
+            .temp_states
+            .entry(id)
+            .or_insert_with(|| Box::new(init_fn()));
+        v.downcast_mut::<S>().unwrap()
+    }
+    pub(crate) fn clear_temps(&mut self) {
+        for i in &self.marked_state_ids {
+            self.temp_states.remove(i);
+        }
     }
 
     pub fn draw_stroke(&mut self, points: impl ExactSizeIterator<Item = [f32; 2]> + Clone) {
