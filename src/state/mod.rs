@@ -118,7 +118,6 @@ where
 
                     app.state
                         .render(&mut app.stage, delta.as_secs_f64(), &mut app.data);
-                    app.stage.clear_temps();
 
                     app.data
                         .gpu_data

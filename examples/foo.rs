@@ -1,12 +1,44 @@
-use std::{thread, time::Duration};
+use std::{
+    any::Any,
+    collections::{HashMap, HashSet},
+    hash::Hash,
+    rc::Rc,
+    thread,
+    time::Duration,
+};
 
 use desen::{AppData, AppState, Stage, TextureInfo, run_app};
 
 use dioxus_devtools::subsecond;
 use image::ImageReader;
+#[derive(Debug, Default)]
+pub struct TempStates<K, T> {
+    pub(crate) map: HashMap<K, T>,
+    pub(crate) marked: HashSet<K>,
+    pub(crate) safe: HashSet<K>,
+}
+impl<K: Eq + Hash + Clone, T> TempStates<K, T> {
+    fn start(&mut self) {
+        std::mem::swap(&mut self.marked, &mut self.safe);
+        self.safe.clear();
+    }
+    fn finish(&mut self) {
+        for i in &self.marked {
+            self.map.remove(i);
+        }
+    }
+    pub fn temp(&mut self, id: K, init_fn: impl Fn() -> T) -> &mut T {
+        self.marked.remove(&id);
+        self.safe.insert(id.clone());
+        self.map.entry(id).or_insert_with(init_fn)
+    }
+}
 
 struct State {
     time: f32,
+
+    temps: TempStates<i32, f32>,
+
     tex: TextureInfo,
     show: bool,
 }
@@ -20,6 +52,7 @@ impl AppState for State {
         let tex = data.load_texture_rgba(&img.to_rgba8(), img.width(), img.height(), false);
         Self {
             time: 0.0,
+            temps: TempStates::default(),
             tex,
             show: true,
         }
@@ -30,18 +63,22 @@ impl AppState for State {
     }
 
     fn render(&mut self, s: &mut Stage, delta: f64, data: &mut AppData) {
+        self.temps.start();
+
         self.button(s, 0.0, 100.0, 100.0, 50.0, |slef| {
             slef.show = !slef.show;
         });
 
         if self.show {
             s.fill_color = [1.0, 0.0, 0.0, 1.0];
-            let v = s.temp("hi", || 0.0);
-            *v += 0.5;
-            let v = *v;
 
-            s.rect().x(v).w(50.0).h(50.0).draw();
+            let v = self.temps.temp(69, || 0.0);
+            *v += 0.5;
+
+            s.rect().x(*v).w(50.0).h(50.0).draw();
         }
+
+        self.temps.finish();
     }
 }
 
