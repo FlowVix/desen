@@ -350,7 +350,7 @@ impl Stage {
     ) {
         let point_count =
             (((w + h) * self.transform.matrix2.determinant().sqrt()).ln() * 10.0).max(3.0) as usize;
-        println!("{}", point_count);
+
         let angle = 2.0 * PI / point_count as f32;
 
         let points = (0..point_count)

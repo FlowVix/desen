@@ -1,10 +1,31 @@
+use std::{thread, time::Duration};
+
 use desen::{AppData, AppState, Stage, TextureInfo, run_app};
+
 use dioxus_devtools::subsecond;
 use image::ImageReader;
 
 struct State {
     time: f32,
     tex: TextureInfo,
+}
+
+fn button(s: &mut Stage, x: f32, y: f32, w: f32, h: f32, mut onclick: impl FnMut()) {
+    s.draw_stroke = false;
+    s.draw_fill = true;
+    let sense = s.rect_sense().x(x).y(y).w(w).h(h).test();
+
+    s.fill_color = [0.4, 0.4, 0.4, 1.0];
+    if sense.hovering {
+        s.fill_color = [0.5, 0.5, 0.5, 1.0];
+    }
+    if sense.holding {
+        s.fill_color = [0.3, 0.3, 0.3, 1.0];
+    }
+    s.rect().x(x).y(y).w(w).h(h).draw();
+    if sense.click_ended {
+        onclick();
+    }
 }
 
 impl AppState for State {
@@ -22,16 +43,28 @@ impl AppState for State {
     }
 
     fn render(&mut self, s: &mut Stage, delta: f64, data: &mut AppData) {
-        s.draw_stroke = true;
-        s.draw_fill = true;
-
-        s.fill_color = [0.0, 0.0, 1.0, 1.0];
-        s.stroke_color = [0.0, 1.0, 0.0, 1.0];
-        s.ellipse().w(self.time * 20.0).h(self.time * 20.0).draw();
+        subsecond::call(|| {
+            button(s, 0.0, 0.0, 100.0, 50.0, || {
+                println!("gaga");
+            });
+        })
     }
+}
+
+fn fact(v: u32) -> u32 {
+    if v < 2 {
+        return 1;
+    }
+    return v * fact(v - 1);
 }
 
 fn main() {
     dioxus_devtools::connect_subsecond();
-    run_app::<State>(100);
+    loop {
+        subsecond::call(|| {
+            thread::sleep(Duration::from_secs(2));
+            println!("gagaeee {}", fact(6));
+        })
+    }
+    // run_app::<State>(100);
 }
