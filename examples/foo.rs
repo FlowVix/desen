@@ -1,13 +1,20 @@
-use desen::{AppData, AppState, Stage, run_app};
+use desen::{AppData, AppState, Stage, TextureInfo, run_app};
 use dioxus_devtools::subsecond;
+use image::ImageReader;
 
 struct State {
     time: f32,
+    tex: TextureInfo,
 }
 
 impl AppState for State {
     fn setup(data: &mut AppData) -> Self {
-        Self { time: 0.0 }
+        let img: image::DynamicImage = ImageReader::open("examples/uv.png")
+            .unwrap()
+            .decode()
+            .unwrap();
+        let tex = data.load_texture_rgba(&img.to_rgba8(), img.width(), img.height(), false);
+        Self { time: 0.0, tex }
     }
 
     fn fixed_update(&mut self, delta: f64, data: &mut AppData) {
@@ -15,31 +22,12 @@ impl AppState for State {
     }
 
     fn render(&mut self, s: &mut Stage, delta: f64, data: &mut AppData) {
-        s.draw_stroke = false;
+        s.draw_stroke = true;
         s.draw_fill = true;
-        s.rotate(0.5);
-        s.translate(100.0, 0.0);
 
-        let check = |s: &mut Stage, x: f32, y: f32, w: f32, h: f32, msg: &str| {
-            s.rect().x(x).y(y).w(w).h(h).draw();
-            if s.ellipse_sense().x(x).y(y).w(w).h(h).test().clicked {
-                println!("{}", msg);
-            }
-        };
-
-        s.fill_color = [1.0, 0.0, 0.0, 1.0];
-        check(s, 0.0, 0.0, 300.0, 100.0, "A");
-        // s.fill_color = [0.0, 0.0, 1.0, 1.0];
-        // check(s, 40.0, 20.0, 100.0, 100.0, "BBB");
-
-        // s.tri()
-        //     .a([0.0, 0.0])
-        //     .b([100.0, 0.0])
-        //     .c([100.0, 100.0])
-        //     .color_a([1.0, 0.0, 0.0, 1.0])
-        //     .color_b([0.0, 1.0, 0.0, 1.0])
-        //     .color_c([0.0, 0.0, 1.0, 1.0])
-        //     .draw();
+        s.fill_color = [0.0, 0.0, 1.0, 1.0];
+        s.stroke_color = [0.0, 1.0, 0.0, 1.0];
+        s.ellipse().w(self.time * 20.0).h(self.time * 20.0).draw();
     }
 }
 

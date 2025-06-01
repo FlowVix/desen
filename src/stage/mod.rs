@@ -96,12 +96,12 @@ impl Stage {
             set_texture: None,
         });
 
-        self.fill_color = [0.3, 0.3, 0.3, 1.0];
-        self.stroke_color = [0.8, 0.8, 0.8, 1.0];
+        self.fill_color = [1.0, 1.0, 1.0, 1.0];
+        self.stroke_color = [1.0, 1.0, 1.0, 1.0];
         self.stroke_weight = 2.0;
 
         self.draw_fill = true;
-        self.draw_stroke = true;
+        self.draw_stroke = false;
 
         self.arc_segments = 8;
 
@@ -150,95 +150,47 @@ impl Stage {
     }
 
     pub fn draw_stroke(&mut self, points: impl ExactSizeIterator<Item = [f32; 2]> + Clone) {
-        // let n_verts = points.len() as u32 * 2;
+        let n_verts = points.len() as u32 * 2;
 
-        // let (stroke_color, stroke_weight, transform) =
-        //     (self.stroke_color, self.stroke_weight, self.transform);
+        let (stroke_color, stroke_weight) = (self.stroke_color, self.stroke_weight);
 
-        // self.add_geometry(
-        //     points
-        //         .circular_tuple_windows()
-        //         .flat_map(|(prev, current, next)| {
-        //             let angle_prev = (prev[1] - current[1]).atan2(prev[0] - current[0]);
-        //             let angle_next = (next[1] - current[1]).atan2(next[0] - current[0]);
-        //             let angle = (angle_prev + angle_next) / 2.0;
+        let points = points
+            .circular_tuple_windows()
+            .flat_map(|(prev, current, next)| {
+                let angle_prev = (prev[1] - current[1]).atan2(prev[0] - current[0]);
+                let angle_next = (next[1] - current[1]).atan2(next[0] - current[0]);
+                let angle = (angle_prev + angle_next) / 2.0;
 
-        //             let angle_diff = angle_next - angle_prev;
-        //             let scale = 1.0 / ((PI - angle_diff) / 2.0).cos();
+                let angle_diff = angle_next - angle_prev;
+                let scale = 1.0 / ((PI - angle_diff) / 2.0).cos();
 
-        //             let cos = angle.cos();
-        //             let sin = angle.sin();
+                let cos = angle.cos();
+                let sin = angle.sin();
 
-        //             [
-        //                 [
-        //                     current[0] - cos * stroke_weight / 2.0 * scale,
-        //                     current[1] - sin * stroke_weight / 2.0 * scale,
-        //                 ],
-        //                 [
-        //                     current[0] + cos * stroke_weight / 2.0 * scale,
-        //                     current[1] + sin * stroke_weight / 2.0 * scale,
-        //                 ],
-        //             ]
-        //             .map(|v| {
-        //                 VertexInput::new(
-        //                     v,
-        //                     stroke_color,
-        //                     [-10.0, 0.0],
-        //                     transform.matrix2.x_axis.to_array(),
-        //                     transform.matrix2.y_axis.to_array(),
-        //                     transform.translation.to_array(),
-        //                 )
-        //             })
-        //         }),
-        //     (0..n_verts).flat_map(|i| [i, (i + 1) % n_verts, (i + 2) % n_verts]),
-        // );
+                [
+                    [
+                        current[0] - cos * stroke_weight / 2.0 * scale,
+                        current[1] - sin * stroke_weight / 2.0 * scale,
+                    ],
+                    [
+                        current[0] + cos * stroke_weight / 2.0 * scale,
+                        current[1] + sin * stroke_weight / 2.0 * scale,
+                    ],
+                ]
+            })
+            .collect_vec();
+
+        for [a, b, c] in (0..n_verts).map(|i| [i, (i + 1) % n_verts, (i + 2) % n_verts]) {
+            self.tri()
+                .a(points[a as usize])
+                .b(points[b as usize])
+                .c(points[c as usize])
+                .color_a(stroke_color)
+                .color_b(stroke_color)
+                .color_c(stroke_color)
+                .draw();
+        }
     }
-
-    // pub fn set_fill_color(&mut self, color: [f32; 4]) {
-    //     self.fill_color = color;
-    // }
-    // pub fn get_fill_color(&mut self) -> [f32; 4] {
-    //     self.fill_color
-    // }
-    // pub fn set_stroke_color(&mut self, color: [f32; 4]) {
-    //     self.stroke_color = color;
-    // }
-    // pub fn get_stroke_color(&mut self) -> [f32; 4] {
-    //     self.stroke_color
-    // }
-    // pub fn set_stroke_weight(&mut self, weight: f32) {
-    //     self.stroke_weight = weight;
-    // }
-    // pub fn get_stroke_weight(&mut self) -> f32 {
-    //     self.stroke_weight
-    // }
-
-    // pub fn set_draw_fill(&mut self, draw: bool) {
-    //     self.draw_fill = draw;
-    // }
-    // pub fn get_draw_fill(&mut self) -> bool {
-    //     self.draw_fill
-    // }
-    // pub fn set_draw_stroke(&mut self, draw: bool) {
-    //     self.draw_stroke = draw;
-    // }
-    // pub fn get_draw_stroke(&mut self) -> bool {
-    //     self.draw_stroke
-    // }
-
-    // pub fn set_arc_segments(&mut self, count: u16) {
-    //     self.arc_segments = count.max(1);
-    // }
-    // pub fn get_arc_segments(&mut self) -> u16 {
-    //     self.arc_segments
-    // }
-
-    // pub fn set_transform(&mut self, transform: Affine2) {
-    //     self.transform = transform;
-    // }
-    // pub fn get_transform(&mut self) -> Affine2 {
-    //     self.transform
-    // }
 
     pub fn add_transform(&mut self, transform: Affine2) {
         self.transform *= transform;
@@ -335,45 +287,144 @@ impl Stage {
         #[builder(default = 0.0)] w: f32,
         #[builder(default = 0.0)] h: f32,
         #[builder(default = false)] centered: bool,
-        rounded: Option<f32>,
+        uv: Option<[f32; 4]>,
     ) {
-        match rounded {
-            Some(_) => todo!(),
-            None => {
-                let mut points =
-                    [[0.0, 0.0], [w, 0.0], [w, h], [0.0, h]].map(|[p0, p1]| [p0 + x, p1 + y]);
+        let mut points = [[0.0, 0.0], [w, 0.0], [w, h], [0.0, h]].map(|[p0, p1]| [p0 + x, p1 + y]);
 
-                if centered {
-                    for i in &mut points {
-                        i[0] -= w / 2.0;
-                        i[1] -= h / 2.0;
-                    }
-                }
-                if self.draw_fill {
-                    let color = self.fill_color;
-                    self.tri()
-                        .a(points[0])
-                        .b(points[1])
-                        .c(points[2])
-                        .color_a(color)
-                        .color_b(color)
-                        .color_c(color)
-                        .draw();
-                    self.tri()
-                        .a(points[2])
-                        .b(points[3])
-                        .c(points[0])
-                        .color_a(color)
-                        .color_b(color)
-                        .color_c(color)
-                        .draw();
-                }
-                if self.draw_stroke {
-                    self.draw_stroke(points.into_iter());
-                }
+        if centered {
+            for i in &mut points {
+                i[0] -= w / 2.0;
+                i[1] -= h / 2.0;
             }
         }
+        if self.draw_fill {
+            let color = self.fill_color;
+
+            let [uv_x0, uv_y0, uv_x1, uv_y1] = self
+                .current_texture
+                .and(uv)
+                .unwrap_or([-10.0, -10.0, -10.0, -10.0]);
+
+            let uv_pts = [
+                [uv_x0, uv_y1],
+                [uv_x1, uv_y1],
+                [uv_x1, uv_y0],
+                [uv_x0, uv_y0],
+            ];
+
+            self.tri()
+                .a(points[0])
+                .b(points[1])
+                .c(points[2])
+                .color_a(color)
+                .color_b(color)
+                .color_c(color)
+                .uv_a(uv_pts[0])
+                .uv_b(uv_pts[1])
+                .uv_c(uv_pts[2])
+                .draw();
+            self.tri()
+                .a(points[2])
+                .b(points[3])
+                .c(points[0])
+                .color_a(color)
+                .color_b(color)
+                .color_c(color)
+                .uv_a(uv_pts[2])
+                .uv_b(uv_pts[3])
+                .uv_c(uv_pts[0])
+                .draw();
+        }
+        if self.draw_stroke {
+            self.draw_stroke(points.into_iter());
+        }
     }
+
+    #[builder(finish_fn = draw)]
+    pub fn ellipse(
+        &mut self,
+        #[builder(default = 0.0)] x: f32,
+        #[builder(default = 0.0)] y: f32,
+        #[builder(default = 0.0)] w: f32,
+        #[builder(default = 0.0)] h: f32,
+    ) {
+        let point_count =
+            (((w + h) * self.transform.matrix2.determinant().sqrt()).ln() * 10.0).max(3.0) as usize;
+        println!("{}", point_count);
+        let angle = 2.0 * PI / point_count as f32;
+
+        let points = (0..point_count)
+            .map(|v| {
+                [
+                    x + (v as f32 * angle).cos() * w,
+                    y + (v as f32 * angle).sin() * h,
+                ]
+            })
+            .collect_vec();
+
+        if self.draw_fill {
+            let color = self.fill_color;
+
+            for i in 1..(point_count - 1) {
+                self.tri()
+                    .a(points[0])
+                    .b(points[i])
+                    .c(points[i + 1])
+                    .color_a(color)
+                    .color_b(color)
+                    .color_c(color)
+                    .draw();
+            }
+        }
+        if self.draw_stroke {
+            self.draw_stroke(points.into_iter());
+        }
+    }
+    // #[builder(finish_fn = draw)]
+    // pub fn rounded_rect(
+    //     &mut self,
+    //     #[builder(default = 0.0)] x: f32,
+    //     #[builder(default = 0.0)] y: f32,
+    //     #[builder(default = 0.0)] w: f32,
+    //     #[builder(default = 0.0)] h: f32,
+    //     #[builder(default = 0.0)] tl: f32,
+    //     #[builder(default = 0.0)] tr: f32,
+    //     #[builder(default = 0.0)] br: f32,
+    //     #[builder(default = 0.0)] bl: f32,
+    //     #[builder(default = false)] centered: bool,
+    // ) {
+    //     let mut points = [[0.0, 0.0], [w, 0.0], [w, h], [0.0, h]].map(|[p0, p1]| [p0 + x, p1 + y]);
+
+    //     if centered {
+    //         for i in &mut points {
+    //             i[0] -= w / 2.0;
+    //             i[1] -= h / 2.0;
+    //         }
+    //     }
+    //     if self.draw_fill {
+    //         let color = self.fill_color;
+
+    //         self.tri()
+    //             .a(points[0])
+    //             .b(points[1])
+    //             .c(points[2])
+    //             .color_a(color)
+    //             .color_b(color)
+    //             .color_c(color)
+    //             .draw();
+    //         self.tri()
+    //             .a(points[2])
+    //             .b(points[3])
+    //             .c(points[0])
+    //             .color_a(color)
+    //             .color_b(color)
+    //             .color_c(color)
+    //             .draw();
+    //     }
+    //     if self.draw_stroke {
+    //         self.draw_stroke(points.into_iter());
+    //     }
+    // }
 
     fn add_sense(&mut self, shape: SenseShape, id: u64) -> Interactions<bool> {
         self.build_senses.push(SenseSave { shape, id });
