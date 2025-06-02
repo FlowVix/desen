@@ -34,27 +34,18 @@ impl AppState for State {
     }
 
     fn fixed_update(&mut self, delta: f64, data: &mut AppData) {
-        // self.time += delta as f32;
+        self.time += delta as f32;
     }
 
     fn render(&mut self, s: &mut Stage, delta: f64, data: &mut AppData) {
-        self.button(s, 0.0, 100.0, 100.0, 50.0, |slef| {
-            slef.show = !slef.show;
-        });
-
-        if self.show {
-            s.fill_color = [1.0, 0.0, 0.0, 1.0];
-
-            let x = s.temp("test", || 0.0);
-            *x += 0.5;
-            let x = *x;
-
-            let y = s.temp("test", || 0u64);
-            *y += 1;
-            let y = *y;
-
-            s.rect().x(x).y(y as f32).w(50.0).h(50.0).draw();
-        }
+        s.draw_stroke = true;
+        s.stroke_weight = 20.0;
+        s.line()
+            .x1(0.0)
+            .y1(0.0)
+            .x2(self.time.cos() * 100.0)
+            .y2(self.time.sin() * 100.0)
+            .draw();
     }
 }
 

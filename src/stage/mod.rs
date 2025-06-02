@@ -434,6 +434,45 @@ impl Stage {
             self.draw_stroke(points.into_iter());
         }
     }
+
+    #[builder(finish_fn = draw)]
+    pub fn line(
+        &mut self,
+        #[builder(default = 0.0)] x1: f32,
+        #[builder(default = 0.0)] y1: f32,
+        #[builder(default = 0.0)] x2: f32,
+        #[builder(default = 0.0)] y2: f32,
+    ) {
+        if self.draw_stroke {
+            let to = (vec2(x2, y2) - vec2(x1, y1)).normalize() * self.stroke_weight / 2.0;
+            let to = vec2(to.y, -to.x);
+            let points = [
+                [x1 + to.x, y1 + to.y],
+                [x2 + to.x, y2 + to.y],
+                [x2 - to.x, y2 - to.y],
+                [x1 - to.x, y1 - to.y],
+            ];
+
+            let color = self.stroke_color;
+            self.tri()
+                .a(points[0])
+                .b(points[1])
+                .c(points[2])
+                .color_a(color)
+                .color_b(color)
+                .color_c(color)
+                .draw();
+            self.tri()
+                .a(points[2])
+                .b(points[3])
+                .c(points[0])
+                .color_a(color)
+                .color_b(color)
+                .color_c(color)
+                .draw();
+        }
+    }
+
     #[builder(finish_fn = draw)]
     pub fn text<'a>(
         &mut self,
