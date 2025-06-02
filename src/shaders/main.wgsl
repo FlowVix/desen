@@ -47,12 +47,13 @@ fn vs_main(
 
     var pos = mat2x2f(instance.affine_t_x, instance.affine_t_y) * positions[v_idx] + instance.affine_offset;
     if instance.is_text > 0 {
-        if GLOBALS.screen_size.x % 2 == 1 {
-            pos.x += 0.5;
-        }
-        if GLOBALS.screen_size.y % 2 == 1 {
-            pos.y += 0.5;
-        }
+        // pos.x = round()
+        // if GLOBALS.screen_size.x % 2 == 1 {
+        //     pos.x += 0.5;
+        // }
+        // if GLOBALS.screen_size.y % 2 == 1 {
+        //     pos.y += 0.5;
+        // }
     }
     out.pos = vec4f(pos / GLOBALS.screen_size * 2.0, 0.0, 1.0);
 

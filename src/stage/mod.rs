@@ -7,8 +7,10 @@ use std::{
     f32::consts::PI,
     mem::swap,
     rc::Rc,
+    time::Instant,
 };
 
+use cosmic_text::AttrsOwned;
 use itertools::Itertools;
 
 use glam::{Affine2, Mat2, Vec2, vec2};
@@ -16,7 +18,7 @@ use sense::{Interactions, SenseSave, SenseShape, SenseShapeType, test_in_shape};
 
 use crate::{
     AppData,
-    render::text::{find_closest_attrs, glyph::prepare_glyph},
+    render::text::{HashableMetrics, find_closest_attrs, glyph::prepare_glyph},
     shaders::wgsl_main::structs::{InstanceInput, VertexInput},
     state::data::{TextureInfo, TextureKey},
 };
@@ -61,6 +63,9 @@ pub struct Stage {
     pub(crate) sense_id_ctr: u64,
 
     pub(crate) interactions: Interactions<Option<u64>>,
+
+    pub(crate) cached_buffers:
+        HashMap<(HashableMetrics, cosmic_text::AttrsOwned, String), (cosmic_text::Buffer, bool)>,
 }
 
 impl Stage {
@@ -91,6 +96,7 @@ impl Stage {
                 clicked: None,
                 click_ended: None,
             },
+            cached_buffers: HashMap::new(),
         };
         out.reset();
         out
@@ -122,6 +128,14 @@ impl Stage {
         self.build_senses.clear();
 
         self.sense_id_ctr = 0;
+
+        self.update_interactions();
+
+        // clear unused buffers then set them all to unused
+        self.cached_buffers.retain(|_, (_, in_use)| *in_use);
+        for (_, in_use) in self.cached_buffers.values_mut() {
+            *in_use = false;
+        }
     }
     pub(crate) fn update_interactions(&mut self) {
         let old = self.interactions;
@@ -411,24 +425,34 @@ impl Stage {
         #[builder(default = cosmic_text::Style::Normal)] style: cosmic_text::Style,
         #[builder(default = cosmic_text::Stretch::Normal)] stretch: cosmic_text::Stretch,
     ) {
-        let attrs = find_closest_attrs(
+        let attrs = AttrsOwned::new(&find_closest_attrs(
             app_data.gpu_data.font_system.db(),
             family,
             weight,
             style,
             stretch,
-        );
+        ));
+        let text = text.as_ref().to_string();
 
-        let mut buffer = cosmic_text::Buffer::new(&mut app_data.gpu_data.font_system, metrics);
+        let (buffer, in_use) = self
+            .cached_buffers
+            .entry((HashableMetrics(metrics), attrs.clone(), text.clone()))
+            .or_insert_with(|| {
+                let mut buffer =
+                    cosmic_text::Buffer::new(&mut app_data.gpu_data.font_system, metrics);
+
+                buffer.set_text(
+                    &mut app_data.gpu_data.font_system,
+                    text.as_ref(),
+                    &attrs.as_attrs(),
+                    cosmic_text::Shaping::Advanced,
+                );
+
+                (buffer, true)
+            });
+        *in_use = true;
 
         buffer.set_size(&mut app_data.gpu_data.font_system, w, h);
-        buffer.set_text(
-            &mut app_data.gpu_data.font_system,
-            text.as_ref(),
-            &attrs,
-            cosmic_text::Shaping::Advanced,
-        );
-
         buffer.shape_until_scroll(&mut app_data.gpu_data.font_system, true);
 
         for run in buffer.layout_runs() {

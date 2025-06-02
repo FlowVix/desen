@@ -110,7 +110,6 @@ where
                 }
                 winit::event::WindowEvent::RedrawRequested => {
                     app.stage.reset();
-                    app.stage.update_interactions();
 
                     let now = Instant::now();
                     let delta = now - app.last_render;

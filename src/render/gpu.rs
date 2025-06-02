@@ -46,7 +46,7 @@ impl GPUData {
         height: u32,
     ) -> Self {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::all(),
+            backends: wgpu::Backends::GL,
             flags: wgpu::InstanceFlags::all(),
             ..Default::default()
         });

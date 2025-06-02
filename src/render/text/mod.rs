@@ -2,6 +2,8 @@
 //!
 //! Special thanks to System76 for the incredible [cosmic-text](https://github.com/pop-os/cosmic-text) crate
 
+use std::hash::Hash;
+
 use cosmic_text::fontdb;
 
 pub mod atlas;
@@ -36,4 +38,19 @@ pub fn find_closest_attrs<'a>(
             .style(style),
     )
     .family(family)
+}
+#[derive(Debug, Clone)]
+pub struct HashableMetrics(pub cosmic_text::Metrics);
+impl PartialEq for HashableMetrics {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.font_size.to_bits() == other.0.font_size.to_bits()
+            && self.0.line_height.to_bits() == other.0.line_height.to_bits()
+    }
+}
+impl Eq for HashableMetrics {}
+impl Hash for HashableMetrics {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.font_size.to_bits().hash(state);
+        self.0.line_height.to_bits().hash(state);
+    }
 }

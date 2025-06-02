@@ -59,7 +59,7 @@ impl AppState for State {
     }
 
     fn fixed_update(&mut self, delta: f64, data: &mut AppData) {
-        self.time += delta as f32;
+        // self.time += delta as f32;
     }
 
     fn render(&mut self, s: &mut Stage, delta: f64, data: &mut AppData) {
@@ -80,13 +80,15 @@ impl AppState for State {
 
         // self.temps.finish();
 
-        s.fill_color = [0.2, 0.2, 0.2, 1.0];
-        s.rect().w(150.0 + self.time * 50.0).h(-500.0).draw();
+        let ws = data.window().inner_size();
+        s.translate(-(ws.width as f32) / 2.0, ws.height as f32 / 2.0);
+
         s.fill_color = [1.0; 4];
         s.text()
             .app_data(data)
-            .text("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt 😍😍😍😍😂😂\n\n\nhello hello hello hello hello hello ")
-            .w(150.0 + self.time * 50.0)
+            .text(&"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt 😍😍😍 😍😂😂".repeat(50))
+            .w(ws.width as f32)
+            .h(ws.height as f32)
             .draw();
     }
 }
