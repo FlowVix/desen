@@ -8,11 +8,11 @@ pub struct Interactions<T> {
     pub hover_ended: T,
 
     pub holding: T,
-    pub clicked: T,
+    pub click_started: T,
     pub click_ended: T,
 
     pub right_holding: T,
-    pub right_clicked: T,
+    pub right_click_started: T,
     pub right_click_ended: T,
 }
 

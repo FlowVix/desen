@@ -104,10 +104,10 @@ impl Stage {
                 hover_started: None,
                 hover_ended: None,
                 holding: None,
-                clicked: None,
+                click_started: None,
                 click_ended: None,
                 right_holding: None,
-                right_clicked: None,
+                right_click_started: None,
                 right_click_ended: None,
             },
             cached_buffers: HashMap::new(),
@@ -173,7 +173,7 @@ impl Stage {
         };
 
         self.interactions.holding = self.mouse_down;
-        self.interactions.clicked = if self.interactions.holding != old.holding {
+        self.interactions.click_started = if self.interactions.holding != old.holding {
             self.interactions.holding
         } else {
             None
@@ -185,11 +185,12 @@ impl Stage {
         };
 
         self.interactions.right_holding = self.right_mouse_down;
-        self.interactions.right_clicked = if self.interactions.right_holding != old.right_holding {
-            self.interactions.right_holding
-        } else {
-            None
-        };
+        self.interactions.right_click_started =
+            if self.interactions.right_holding != old.right_holding {
+                self.interactions.right_holding
+            } else {
+                None
+            };
         self.interactions.right_click_ended =
             if self.interactions.right_holding != old.right_holding {
                 old.right_holding
@@ -630,11 +631,14 @@ impl Stage {
             hovering_bypass: in_shape,
 
             holding: self.interactions.holding.is_some_and(|v| v == id),
-            clicked: self.interactions.clicked.is_some_and(|v| v == id),
+            click_started: self.interactions.click_started.is_some_and(|v| v == id),
             click_ended: self.interactions.click_ended.is_some_and(|v| v == id),
 
             right_holding: self.interactions.right_holding.is_some_and(|v| v == id),
-            right_clicked: self.interactions.right_clicked.is_some_and(|v| v == id),
+            right_click_started: self
+                .interactions
+                .right_click_started
+                .is_some_and(|v| v == id),
             right_click_ended: self.interactions.right_click_ended.is_some_and(|v| v == id),
         }
     }
