@@ -2,9 +2,10 @@ pub mod color;
 pub mod sense;
 
 use std::{
-    any::Any,
+    any::{Any, TypeId},
     collections::{HashMap, HashSet},
     f32::consts::PI,
+    hash::{DefaultHasher, Hash, Hasher},
     mem::swap,
     rc::Rc,
     time::Instant,
@@ -66,6 +67,8 @@ pub struct Stage {
 
     pub(crate) cached_buffers:
         HashMap<(HashableMetrics, cosmic_text::AttrsOwned, String), (cosmic_text::Buffer, bool)>,
+
+    pub(crate) temp_states: HashMap<(TypeId, TypeId, u64), (Box<dyn Any>, bool)>,
 }
 
 impl Stage {
@@ -97,6 +100,7 @@ impl Stage {
                 click_ended: None,
             },
             cached_buffers: HashMap::new(),
+            temp_states: HashMap::new(),
         };
         out.reset();
         out
@@ -136,6 +140,11 @@ impl Stage {
         for (_, in_use) in self.cached_buffers.values_mut() {
             *in_use = false;
         }
+        // clear unused temp states then set them all to unused
+        self.temp_states.retain(|_, (_, in_use)| *in_use);
+        for (_, in_use) in self.temp_states.values_mut() {
+            *in_use = false;
+        }
     }
     pub(crate) fn update_interactions(&mut self) {
         let old = self.interactions;
@@ -169,6 +178,22 @@ impl Stage {
         let v = self.sense_id_ctr;
         self.sense_id_ctr += 1;
         v
+    }
+
+    pub fn temp<K: Hash + 'static, T: 'static, F: FnOnce() -> T>(
+        &mut self,
+        key: K,
+        new: F,
+    ) -> &mut T {
+        let mut hasher = DefaultHasher::new();
+        key.hash(&mut hasher);
+        let key = (key.type_id(), TypeId::of::<T>(), hasher.finish());
+        let (val, in_use) = self
+            .temp_states
+            .entry(key)
+            .or_insert_with(|| (Box::new(new()), true));
+        *in_use = true;
+        val.downcast_mut().unwrap()
     }
 
     pub fn draw_stroke(&mut self, points: impl ExactSizeIterator<Item = [f32; 2]> + Clone) {

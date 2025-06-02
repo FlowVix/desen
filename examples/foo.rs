@@ -1,5 +1,5 @@
 use std::{
-    any::Any,
+    any::{Any, TypeId},
     collections::{HashMap, HashSet},
     hash::Hash,
     rc::Rc,
@@ -11,33 +11,9 @@ use desen::{AppData, AppState, Stage, TextureInfo, run_app};
 
 use dioxus_devtools::subsecond;
 use image::ImageReader;
-#[derive(Debug, Default)]
-pub struct TempStates<K, T> {
-    pub(crate) map: HashMap<K, T>,
-    pub(crate) marked: HashSet<K>,
-    pub(crate) safe: HashSet<K>,
-}
-impl<K: Eq + Hash + Clone, T> TempStates<K, T> {
-    fn start(&mut self) {
-        std::mem::swap(&mut self.marked, &mut self.safe);
-        self.safe.clear();
-    }
-    fn finish(&mut self) {
-        for i in &self.marked {
-            self.map.remove(i);
-        }
-    }
-    pub fn temp(&mut self, id: K, init_fn: impl Fn() -> T) -> &mut T {
-        self.marked.remove(&id);
-        self.safe.insert(id.clone());
-        self.map.entry(id).or_insert_with(init_fn)
-    }
-}
 
 struct State {
     time: f32,
-
-    temps: TempStates<i32, f32>,
 
     tex: TextureInfo,
     show: bool,
@@ -52,7 +28,6 @@ impl AppState for State {
         let tex = data.load_texture_rgba(&img.to_rgba8(), img.width(), img.height(), false);
         Self {
             time: 0.0,
-            temps: TempStates::default(),
             tex,
             show: true,
         }
@@ -63,33 +38,23 @@ impl AppState for State {
     }
 
     fn render(&mut self, s: &mut Stage, delta: f64, data: &mut AppData) {
-        // self.temps.start();
+        self.button(s, 0.0, 100.0, 100.0, 50.0, |slef| {
+            slef.show = !slef.show;
+        });
 
-        // self.button(s, 0.0, 100.0, 100.0, 50.0, |slef| {
-        //     slef.show = !slef.show;
-        // });
+        if self.show {
+            s.fill_color = [1.0, 0.0, 0.0, 1.0];
 
-        // if self.show {
-        //     s.fill_color = [1.0, 0.0, 0.0, 1.0];
+            let x = s.temp("test", || 0.0);
+            *x += 0.5;
+            let x = *x;
 
-        //     let v = self.temps.temp(69, || 0.0);
-        //     *v += 0.5;
+            let y = s.temp("test", || 0u64);
+            *y += 1;
+            let y = *y;
 
-        //     s.rect().x(*v).w(50.0).h(50.0).draw();
-        // }
-
-        // self.temps.finish();
-
-        let ws = data.window().inner_size();
-        s.translate(-(ws.width as f32) / 2.0, ws.height as f32 / 2.0);
-
-        s.fill_color = [1.0; 4];
-        s.text()
-            .app_data(data)
-            .text(&"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt 😍😍😍 😍😂😂".repeat(50))
-            .w(ws.width as f32)
-            .h(ws.height as f32)
-            .draw();
+            s.rect().x(x).y(y as f32).w(50.0).h(50.0).draw();
+        }
     }
 }
 
