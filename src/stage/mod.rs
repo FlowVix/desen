@@ -311,6 +311,7 @@ impl Stage {
     }
 }
 
+// MARK: Draw builders
 #[bon::bon]
 impl Stage {
     #[builder(finish_fn = draw)]
@@ -351,7 +352,6 @@ impl Stage {
         #[builder(default = 0.0)] w: f32,
         #[builder(default = 0.0)] h: f32,
         #[builder(default = false)] centered: bool,
-        uv: Option<[f32; 4]>,
     ) {
         let mut points = [[0.0, 0.0], [w, 0.0], [w, h], [0.0, h]].map(|[p0, p1]| [p0 + x, p1 + y]);
 
@@ -364,9 +364,52 @@ impl Stage {
         if self.draw_fill {
             let color = self.fill_color;
 
+            self.tri()
+                .a(points[0])
+                .b(points[1])
+                .c(points[2])
+                .color_a(color)
+                .color_b(color)
+                .color_c(color)
+                .draw();
+            self.tri()
+                .a(points[2])
+                .b(points[3])
+                .c(points[0])
+                .color_a(color)
+                .color_b(color)
+                .color_c(color)
+                .draw();
+        }
+        if self.draw_stroke {
+            self.draw_stroke(points.into_iter());
+        }
+    }
+    #[builder(finish_fn = draw)]
+    pub fn image(
+        &mut self,
+        #[builder(default = 0.0)] x: f32,
+        #[builder(default = 0.0)] y: f32,
+        #[builder(default = 0.0)] w: f32,
+        #[builder(default = 0.0)] h: f32,
+        #[builder(default = false)] centered: bool,
+        #[builder(default = false)] tint: bool,
+        #[builder(default = [0.0, 0.0, 1.0, 1.0])] uv: [f32; 4],
+    ) {
+        let mut points = [[0.0, 0.0], [w, 0.0], [w, h], [0.0, h]].map(|[p0, p1]| [p0 + x, p1 + y]);
+
+        if centered {
+            for i in &mut points {
+                i[0] -= w / 2.0;
+                i[1] -= h / 2.0;
+            }
+        }
+        if self.draw_fill {
+            let color = if tint { self.fill_color } else { [1.0; 4] };
+
             let [uv_x0, uv_y0, uv_x1, uv_y1] = self
                 .current_texture
-                .and(uv)
+                .map(|_| uv)
                 .unwrap_or([-10.0, -10.0, -10.0, -10.0]);
 
             let uv_pts = [
@@ -398,9 +441,6 @@ impl Stage {
                 .uv_b(uv_pts[3])
                 .uv_c(uv_pts[0])
                 .draw();
-        }
-        if self.draw_stroke {
-            self.draw_stroke(points.into_iter());
         }
     }
 
@@ -547,7 +587,11 @@ impl Stage {
             }
         }
     }
+}
 
+// MARK: Sense builders
+#[bon::bon]
+impl Stage {
     fn add_sense(&mut self, shape: SenseShape, id: u64) -> Interactions<bool> {
         self.build_senses.push(SenseSave { shape, id });
 
