@@ -18,8 +18,8 @@ use crate::{Stage, render::gpu::GPUData};
 pub trait AppState {
     fn setup(data: &mut AppData) -> Self;
 
-    fn fixed_update(&mut self, delta: f64, data: &mut AppData);
-    fn render(&mut self, s: &mut Stage, delta: f64, data: &mut AppData);
+    fn fixed_update(&mut self, data: &mut AppData);
+    fn render(&mut self, s: &mut Stage, data: &mut AppData);
 
     fn window_event(&mut self, event: &winit::event::WindowEvent, data: &mut AppData) -> bool {
         false
@@ -40,7 +40,6 @@ struct App<S> {
     state: S,
 
     last_render: Instant,
-    last_update: Instant,
 }
 
 struct AppHandler<S> {
@@ -86,7 +85,6 @@ where
                 state,
 
                 last_render: Instant::now(),
-                last_update: Instant::now(),
             })
         }
     }
@@ -109,14 +107,15 @@ where
                     app.data.gpu_data.resize(to.width, to.height);
                 }
                 winit::event::WindowEvent::RedrawRequested => {
-                    app.stage.reset();
+                    app.stage.start();
 
                     let now = Instant::now();
                     let delta = now - app.last_render;
                     app.last_render = now;
 
-                    app.state
-                        .render(&mut app.stage, delta.as_secs_f64(), &mut app.data);
+                    app.stage.delta = delta.as_secs_f64();
+
+                    app.state.render(&mut app.stage, &mut app.data);
 
                     app.data
                         .gpu_data
@@ -169,11 +168,7 @@ where
         if let Some(app) = &mut self.app {
             match event {
                 CustomEvent::FixedUpdate => {
-                    let now = Instant::now();
-                    let delta = now - app.last_update;
-                    app.last_update = now;
-
-                    app.state.fixed_update(delta.as_secs_f64(), &mut app.data);
+                    app.state.fixed_update(&mut app.data);
                 }
             }
         }

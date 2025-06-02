@@ -38,10 +38,11 @@ pub struct DrawCall {
 }
 
 pub struct Stage {
+    // gpu related -------------------------------
     pub(crate) instances: Vec<InstanceInput>,
-
     pub(crate) draw_calls: Vec<DrawCall>,
 
+    // modifiable -------------------------------
     pub fill_color: [f32; 4],
     pub stroke_color: [f32; 4],
     pub stroke_weight: f32,
@@ -56,15 +57,19 @@ pub struct Stage {
     pub(crate) current_blend_mode: BlendMode,
     pub(crate) current_texture: Option<TextureInfo>,
 
+    // outside handled readonly -------------------------------
     pub(crate) mouse_pos: Vec2,
     pub(crate) mouse_down: Option<u64>,
+    pub(crate) delta: f64,
 
+    // interaction -------------------------------
     pub(crate) old_senses: Vec<SenseSave>,
     pub(crate) build_senses: Vec<SenseSave>,
     pub(crate) sense_id_ctr: u64,
 
     pub(crate) interactions: Interactions<Option<u64>>,
 
+    // cached/temp -------------------------------
     pub(crate) cached_buffers:
         HashMap<(HashableMetrics, cosmic_text::AttrsOwned, String), (cosmic_text::Buffer, bool)>,
 
@@ -90,6 +95,7 @@ impl Stage {
             sense_id_ctr: 0,
             mouse_pos: Vec2::INFINITY,
             mouse_down: None,
+            delta: 0.0,
             interactions: Interactions {
                 hovering: None,
                 hovering_bypass: None,
@@ -102,10 +108,10 @@ impl Stage {
             cached_buffers: HashMap::new(),
             temp_states: HashMap::new(),
         };
-        out.reset();
+        out.start();
         out
     }
-    pub(crate) fn reset(&mut self) {
+    pub(crate) fn start(&mut self) {
         self.instances.clear();
         self.draw_calls.clear();
         self.draw_calls.push(DrawCall {
@@ -194,6 +200,10 @@ impl Stage {
             .or_insert_with(|| (Box::new(new()), true));
         *in_use = true;
         val.downcast_mut().unwrap()
+    }
+
+    pub fn delta(&self) -> f64 {
+        self.delta
     }
 
     pub fn draw_stroke(&mut self, points: impl ExactSizeIterator<Item = [f32; 2]> + Clone) {
@@ -481,14 +491,15 @@ impl Stage {
         #[builder(default = 0.0)] y: f32,
         w: Option<f32>,
         h: Option<f32>,
-        text: impl AsRef<str>,
-        #[builder(default = cosmic_text::Metrics::relative(16.0, 1.3))]
-        metrics: cosmic_text::Metrics,
+        text: impl ToString,
+        #[builder(default = 16.0)] size: f32,
+        #[builder(default = 1.3)] line_height: f32,
         #[builder(default = cosmic_text::Family::SansSerif)] family: cosmic_text::Family<'a>,
         #[builder(default = cosmic_text::Weight::NORMAL)] weight: cosmic_text::Weight,
         #[builder(default = cosmic_text::Style::Normal)] style: cosmic_text::Style,
         #[builder(default = cosmic_text::Stretch::Normal)] stretch: cosmic_text::Stretch,
     ) {
+        let metrics = cosmic_text::Metrics::relative(size, line_height);
         let attrs = AttrsOwned::new(&find_closest_attrs(
             app_data.gpu_data.font_system.db(),
             family,
@@ -496,7 +507,7 @@ impl Stage {
             style,
             stretch,
         ));
-        let text = text.as_ref().to_string();
+        let text = text.to_string();
 
         let (buffer, in_use) = self
             .cached_buffers
