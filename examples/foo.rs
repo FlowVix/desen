@@ -42,14 +42,11 @@ impl AppState for State {
     }
 
     fn render(&mut self, s: &mut Stage, data: &mut AppData) {
-        // self.button(s, 0.0, 100.0, 100.0, 50.0, "a", |slef, _| {
-        //     slef.count += 1;
-        // });
-        // s.fill_color = [1.0; 4];
-        // s.text().text(self.count).size(30.0).app_data(data).draw();
-
-        s.set_texture(self.tex);
-        s.image().w(100.0).h(50.0).draw();
+        self.button(s, 0.0, 100.0, 100.0, 50.0, "a", |slef, _| {
+            slef.count += 1;
+        });
+        s.fill_color = [1.0; 4];
+        s.text().text(self.count).size(30.0).app_data(data).draw();
     }
 }
 

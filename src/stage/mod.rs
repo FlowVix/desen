@@ -60,6 +60,7 @@ pub struct Stage {
     // outside handled readonly -------------------------------
     pub(crate) mouse_pos: Vec2,
     pub(crate) mouse_down: Option<u64>,
+    pub(crate) right_mouse_down: Option<u64>,
     pub(crate) delta: f64,
 
     // interaction -------------------------------
@@ -95,6 +96,7 @@ impl Stage {
             sense_id_ctr: 0,
             mouse_pos: Vec2::INFINITY,
             mouse_down: None,
+            right_mouse_down: None,
             delta: 0.0,
             interactions: Interactions {
                 hovering: None,
@@ -104,6 +106,9 @@ impl Stage {
                 holding: None,
                 clicked: None,
                 click_ended: None,
+                right_holding: None,
+                right_clicked: None,
+                right_click_ended: None,
             },
             cached_buffers: HashMap::new(),
             temp_states: HashMap::new(),
@@ -168,7 +173,6 @@ impl Stage {
         };
 
         self.interactions.holding = self.mouse_down;
-
         self.interactions.clicked = if self.interactions.holding != old.holding {
             self.interactions.holding
         } else {
@@ -179,6 +183,19 @@ impl Stage {
         } else {
             None
         };
+
+        self.interactions.right_holding = self.right_mouse_down;
+        self.interactions.right_clicked = if self.interactions.right_holding != old.right_holding {
+            self.interactions.right_holding
+        } else {
+            None
+        };
+        self.interactions.right_click_ended =
+            if self.interactions.right_holding != old.right_holding {
+                old.right_holding
+            } else {
+                None
+            };
     }
     fn new_sense_id(&mut self) -> u64 {
         let v = self.sense_id_ctr;
@@ -204,6 +221,15 @@ impl Stage {
 
     pub fn delta(&self) -> f64 {
         self.delta
+    }
+    pub fn mouse_down(&self) -> bool {
+        self.mouse_down.is_some()
+    }
+    pub fn right_mouse_down(&self) -> bool {
+        self.right_mouse_down.is_some()
+    }
+    pub fn mouse_world_pos(&self) -> [f32; 2] {
+        self.mouse_pos.to_array()
     }
 
     pub fn draw_stroke(&mut self, points: impl ExactSizeIterator<Item = [f32; 2]> + Clone) {
@@ -606,6 +632,10 @@ impl Stage {
             holding: self.interactions.holding.is_some_and(|v| v == id),
             clicked: self.interactions.clicked.is_some_and(|v| v == id),
             click_ended: self.interactions.click_ended.is_some_and(|v| v == id),
+
+            right_holding: self.interactions.right_holding.is_some_and(|v| v == id),
+            right_clicked: self.interactions.right_clicked.is_some_and(|v| v == id),
+            right_click_ended: self.interactions.right_click_ended.is_some_and(|v| v == id),
         }
     }
 

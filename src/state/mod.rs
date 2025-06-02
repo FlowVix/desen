@@ -142,6 +142,13 @@ where
                         (winit::event::MouseButton::Left, false) => {
                             app.stage.mouse_down = None;
                         }
+                        (winit::event::MouseButton::Right, true) => {
+                            app.stage.right_mouse_down =
+                                app.stage.find_top_old_sense().map(|v| v.id);
+                        }
+                        (winit::event::MouseButton::Right, false) => {
+                            app.stage.right_mouse_down = None;
+                        }
                         _ => {}
                     }
                 }
