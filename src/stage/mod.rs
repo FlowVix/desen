@@ -607,6 +607,8 @@ impl Stage {
                     &mut app_data.gpu_data,
                     self.fill_color,
                     self.transform,
+                    x,
+                    y,
                 ) {
                     self.instances.extend(instances);
                     // self.push_rect_direct(rect);

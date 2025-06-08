@@ -58,6 +58,8 @@ pub fn prepare_glyph(
     gpu_data: &mut GPUData,
     color: [f32; 4],
     transform: Affine2,
+    offset_x: f32,
+    offset_y: f32,
 ) -> Option<[wgsl_main::structs::InstanceInput; 2]> {
     let data = if let Some(d) = gpu_data.mask_atlas.glyph_cache.get(&physical.cache_key) {
         gpu_data.mask_atlas.glyphs_in_use.insert(physical.cache_key);
@@ -178,9 +180,9 @@ pub fn prepare_glyph(
     let width = data.width as f32;
     let height = data.height as f32;
 
-    let mut points = [[0.0, 0.0], [width, 0.0], [width, -height], [0.0, -height]]
-        .map(|[p0, p1]| [p0 + x, p1 - y]);
-    let mut uv = [[0.0, 0.0], [width, 0.0], [width, height], [0.0, height]]
+    let points = [[0.0, 0.0], [width, 0.0], [width, -height], [0.0, -height]]
+        .map(|[p0, p1]| [p0 + x + offset_x, p1 - y + offset_y]);
+    let uv = [[0.0, 0.0], [width, 0.0], [width, height], [0.0, height]]
         .map(|[p0, p1]| [p0 + atlas_x, p1 + atlas_y]);
 
     Some([

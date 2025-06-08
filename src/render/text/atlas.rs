@@ -41,6 +41,7 @@ impl GlyphAtlas {
             wgpu::FilterMode::Nearest,
             wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
             1,
+            1,
         );
 
         let glyph_cache = LruCache::unbounded();
@@ -116,6 +117,7 @@ impl GlyphAtlas {
             new_size,
             wgpu::FilterMode::Nearest,
             wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            1,
             1,
         );
 

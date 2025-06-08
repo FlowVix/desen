@@ -15,6 +15,7 @@ impl Texture {
         filter: wgpu::FilterMode,
         usage: wgpu::TextureUsages,
         mip_level_count: u32,
+        sample_count: u32,
     ) -> Self {
         let size = wgpu::Extent3d {
             width,
@@ -25,7 +26,7 @@ impl Texture {
             label: Some("texture"),
             size,
             mip_level_count,
-            sample_count: 1,
+            sample_count,
             dimension: wgpu::TextureDimension::D2,
             format,
             usage,

@@ -1,7 +1,7 @@
 use wgpu::util::DeviceExt;
 
 use crate::{
-    Stage,
+    BlendMode, Stage,
     render::{
         SAMPLE_COUNT,
         text::{atlas::create_atlases_bind_group, glyph::ContentType},
@@ -21,7 +21,8 @@ pub struct GPUData {
 
     pub multisampled_frame_descriptor: wgpu::TextureDescriptor<'static>,
 
-    pub main_pipeline: wgpu::RenderPipeline,
+    pub normal_pipeline: wgpu::RenderPipeline,
+    pub additive_pipeline: wgpu::RenderPipeline,
 
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
@@ -110,52 +111,36 @@ impl GPUData {
             view_formats: &[],
         };
 
-        macro_rules! pipeline {
-            ($name:ident, $shader_name:ident, $blend_state:expr, ( $($vertex_mode:ident),* )) => {
-                let $name = {
-                    let module = crate::shaders::$shader_name::create_shader_module(&device);
+        // MARK: Pipelines
 
-                    device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                        label: Some("main_render_pipeline"),
-                        layout: Some(&crate::shaders::$shader_name::create_pipeline_layout(&device)),
-                        vertex: crate::shaders::make_vertex_state(
-                            &module,
-                            &crate::shaders::$shader_name::entries::vertex_entry_vs_main(
-                                $(wgpu::VertexStepMode:: $vertex_mode),*
-                            ),
-                        ),
-                        fragment: Some(crate::shaders::make_fragment_state(
-                            &module,
-                            &crate::shaders::$shader_name::entries::fragment_entry_fs_main(&[Some(
-                                wgpu::ColorTargetState {
-                                    format: surface_config.format,
-                                    blend: Some($blend_state),
-                                    write_mask: wgpu::ColorWrites::ALL,
-                                },
-                            )]),
-                        )),
-                        primitive: wgpu::PrimitiveState {
-                            topology: wgpu::PrimitiveTopology::TriangleList,
-                            strip_index_format: None,
-                            front_face: wgpu::FrontFace::Cw,
-                            cull_mode: None,
-                            polygon_mode: wgpu::PolygonMode::Fill,
-                            unclipped_depth: false,
-                            conservative: false,
-                        },
-                        depth_stencil: None,
-                        multisample: wgpu::MultisampleState {
-                            count: SAMPLE_COUNT,
-                            mask: !0,
-                            alpha_to_coverage_enabled: false,
-                        },
-                        multiview: None,
-                        cache: None,
-                    })
-                };
-            };
-        }
-        let normal_state = wgpu::BlendState {
+        let primitive_state = wgpu::PrimitiveState {
+            topology: wgpu::PrimitiveTopology::TriangleList,
+            strip_index_format: None,
+            front_face: wgpu::FrontFace::Cw,
+            cull_mode: None,
+            polygon_mode: wgpu::PolygonMode::Fill,
+            unclipped_depth: false,
+            conservative: false,
+        };
+        let depth_stencil = Some(wgpu::DepthStencilState {
+            format: wgpu::TextureFormat::Depth24PlusStencil8,
+            depth_write_enabled: false,
+            depth_compare: wgpu::CompareFunction::Always,
+            stencil: wgpu::StencilState {
+                front: wgpu::StencilFaceState {
+                    compare: wgpu::CompareFunction::Equal,
+                    fail_op: wgpu::StencilOperation::Keep,
+                    depth_fail_op: wgpu::StencilOperation::Keep,
+                    pass_op: wgpu::StencilOperation::Keep,
+                },
+                back: Default::default(),
+                read_mask: 0xFF,
+                write_mask: 0x00,
+            },
+            bias: wgpu::DepthBiasState::default(),
+        });
+
+        let normal_blend_state = wgpu::BlendState {
             color: wgpu::BlendComponent {
                 src_factor: wgpu::BlendFactor::SrcAlpha,
                 dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
@@ -163,8 +148,79 @@ impl GPUData {
             },
             alpha: wgpu::BlendComponent::OVER,
         };
+        let additive_blend_state = wgpu::BlendState {
+            color: wgpu::BlendComponent {
+                src_factor: wgpu::BlendFactor::SrcAlpha,
+                dst_factor: wgpu::BlendFactor::One,
+                operation: wgpu::BlendOperation::Add,
+            },
+            alpha: wgpu::BlendComponent::OVER,
+        };
 
-        pipeline!(main_pipeline, wgsl_main, normal_state, (Vertex, Instance));
+        let normal_pipeline = {
+            let module = wgsl_main::create_shader_module(&device);
+
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("main_render_pipeline"),
+                layout: Some(&wgsl_main::create_pipeline_layout(&device)),
+                vertex: crate::shaders::make_vertex_state(
+                    &module,
+                    &wgsl_main::entries::vertex_entry_vs_main(
+                        wgpu::VertexStepMode::Vertex,
+                        wgpu::VertexStepMode::Instance,
+                    ),
+                ),
+                fragment: Some(crate::shaders::make_fragment_state(
+                    &module,
+                    &wgsl_main::entries::fragment_entry_fs_main(&[Some(wgpu::ColorTargetState {
+                        format: surface_config.format,
+                        blend: Some(normal_blend_state),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })]),
+                )),
+                primitive: primitive_state,
+                depth_stencil: depth_stencil.clone(),
+                multisample: wgpu::MultisampleState {
+                    count: SAMPLE_COUNT,
+                    mask: !0,
+                    alpha_to_coverage_enabled: false,
+                },
+                multiview: None,
+                cache: None,
+            })
+        };
+        let additive_pipeline = {
+            let module = wgsl_main::create_shader_module(&device);
+
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("main_render_pipeline"),
+                layout: Some(&wgsl_main::create_pipeline_layout(&device)),
+                vertex: crate::shaders::make_vertex_state(
+                    &module,
+                    &wgsl_main::entries::vertex_entry_vs_main(
+                        wgpu::VertexStepMode::Vertex,
+                        wgpu::VertexStepMode::Instance,
+                    ),
+                ),
+                fragment: Some(crate::shaders::make_fragment_state(
+                    &module,
+                    &wgsl_main::entries::fragment_entry_fs_main(&[Some(wgpu::ColorTargetState {
+                        format: surface_config.format,
+                        blend: Some(additive_blend_state),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })]),
+                )),
+                primitive: primitive_state,
+                depth_stencil,
+                multisample: wgpu::MultisampleState {
+                    count: SAMPLE_COUNT,
+                    mask: !0,
+                    alpha_to_coverage_enabled: false,
+                },
+                multiview: None,
+                cache: None,
+            })
+        };
 
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("vertex_buffer"),
@@ -175,6 +231,7 @@ impl GPUData {
             ]),
             usage: wgpu::BufferUsages::VERTEX,
         });
+
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("index_buffer"),
             contents: bytemuck::cast_slice(&[0u16, 1, 2]),
@@ -212,6 +269,7 @@ impl GPUData {
                     wgpu::FilterMode::Linear,
                     wgpu::TextureUsages::TEXTURE_BINDING,
                     1,
+                    1,
                 );
                 wgsl_main::globals::BindGroup1::from_bindings(
                     &device,
@@ -230,7 +288,8 @@ impl GPUData {
             multisampled_frame_descriptor,
             globals_buffer,
             bind_group_0,
-            main_pipeline,
+            normal_pipeline,
+            additive_pipeline,
             vertex_buffer,
             index_buffer,
             mask_atlas,
@@ -283,6 +342,17 @@ impl GPUData {
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
+        let stencil_texture = Texture::blank(
+            &self.device,
+            wgpu::TextureFormat::Depth24PlusStencil8,
+            self.surface_config.width,
+            self.surface_config.height,
+            wgpu::FilterMode::Linear,
+            wgpu::TextureUsages::RENDER_ATTACHMENT,
+            1,
+            SAMPLE_COUNT,
+        );
+
         let multisample_view = self
             .device
             .create_texture(&self.multisampled_frame_descriptor)
@@ -316,13 +386,20 @@ impl GPUData {
                         store: wgpu::StoreOp::Store,
                     },
                 })],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &stencil_texture.view,
+                    depth_ops: None,
+                    stencil_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(0),
+                        store: wgpu::StoreOp::Store,
+                    }),
+                }),
                 occlusion_query_set: None,
                 timestamp_writes: None,
             });
 
             if !stage.instances.is_empty() {
-                render_pass.set_pipeline(&self.main_pipeline);
+                render_pass.set_pipeline(&self.normal_pipeline);
                 render_pass.set_bind_group(0, self.bind_group_0.get_bind_group(), &[]);
                 render_pass.set_bind_group(1, self.dummy_texture.get_bind_group(), &[]);
                 render_pass.set_bind_group(2, self.text_atlas_bind_group.get_bind_group(), &[]);
@@ -341,13 +418,10 @@ impl GPUData {
                         .unwrap_or(num_instances);
 
                     if let Some(mode) = pass.set_blend_mode {
-                        // render_pass.set_pipeline(match mode {
-                        //     crate::frame::BlendMode::Normal => &self.render_pipeline_normal,
-                        //     crate::frame::BlendMode::Additive => &self.render_pipeline_additive,
-                        //     crate::frame::BlendMode::AdditiveSquaredAlpha => {
-                        //         &self.render_pipeline_additive_squared_alpha
-                        //     }
-                        // });
+                        render_pass.set_pipeline(match mode {
+                            BlendMode::Normal => &self.normal_pipeline,
+                            BlendMode::Additive => &self.additive_pipeline,
+                        });
                     }
                     if let Some(tex) = pass.set_texture {
                         render_pass.set_bind_group(
