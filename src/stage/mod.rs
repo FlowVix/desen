@@ -21,6 +21,7 @@ use crate::{
     AppData,
     render::text::{HashableMetrics, find_closest_attrs, glyph::prepare_glyph},
     shaders::wgsl_main::structs::{InstanceInput, VertexInput},
+    stage::color::Color,
     state::data::{TextureInfo, TextureKey},
 };
 
@@ -43,8 +44,8 @@ pub struct Stage {
     pub(crate) draw_calls: Vec<DrawCall>,
 
     // modifiable -------------------------------
-    pub fill_color: [f32; 4],
-    pub stroke_color: [f32; 4],
+    pub fill_color: Color,
+    pub stroke_color: Color,
     pub stroke_weight: f32,
 
     pub draw_fill: bool,
@@ -82,8 +83,8 @@ impl Stage {
         let mut out = Self {
             instances: vec![],
             draw_calls: vec![],
-            fill_color: [0.0; 4],
-            stroke_color: [0.0; 4],
+            fill_color: Color::rgba8(0, 0, 0, 0),
+            stroke_color: Color::rgba8(0, 0, 0, 0),
             stroke_weight: 0.0,
             draw_fill: false,
             draw_stroke: false,
@@ -125,8 +126,8 @@ impl Stage {
             set_texture: None,
         });
 
-        self.fill_color = [1.0, 1.0, 1.0, 1.0];
-        self.stroke_color = [1.0, 1.0, 1.0, 1.0];
+        self.fill_color = Color::rgb8(255, 255, 255);
+        self.stroke_color = Color::rgb8(255, 255, 255);
         self.stroke_weight = 2.0;
 
         self.draw_fill = true;
@@ -347,9 +348,9 @@ impl Stage {
         a: [f32; 2],
         b: [f32; 2],
         c: [f32; 2],
-        color_a: [f32; 4],
-        color_b: [f32; 4],
-        color_c: [f32; 4],
+        color_a: Color,
+        color_b: Color,
+        color_c: Color,
         #[builder(default = [-10.0, 0.0])] uv_a: [f32; 2],
         #[builder(default = [-10.0, 0.0])] uv_b: [f32; 2],
         #[builder(default = [-10.0, 0.0])] uv_c: [f32; 2],
@@ -358,9 +359,9 @@ impl Stage {
             a,
             b,
             c,
-            color_a,
-            color_b,
-            color_c,
+            color_a.to_array(),
+            color_b.to_array(),
+            color_c.to_array(),
             uv_a,
             uv_b,
             uv_c,
@@ -432,7 +433,11 @@ impl Stage {
             }
         }
         if self.draw_fill {
-            let color = if tint { self.fill_color } else { [1.0; 4] };
+            let color = if tint {
+                self.fill_color
+            } else {
+                Color::rgb8(255, 255, 255)
+            };
 
             let [uv_x0, uv_y0, uv_x1, uv_y1] = self
                 .current_texture
@@ -605,7 +610,7 @@ impl Stage {
                     physical,
                     run.line_y,
                     &mut app_data.gpu_data,
-                    self.fill_color,
+                    self.fill_color.to_array(),
                     self.transform,
                     x,
                     y,

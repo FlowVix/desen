@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use desen::{AppData, AppState, BlendMode, Stage, TextureInfo, run_app};
+use desen::{AppData, AppState, BlendMode, Color, Stage, TextureInfo, run_app};
 
 use dioxus_devtools::subsecond;
 use glam::FloatExt;
@@ -43,9 +43,9 @@ impl AppState for State {
 
     fn render(&mut self, s: &mut Stage, data: &mut AppData) {
         s.set_blend_mode(BlendMode::Additive);
-        s.fill_color = [1.0, 0.0, 0.0, 1.0];
+        s.fill_color = Color::rgb8(255, 0, 0);
         s.rect().w(50.0).h(50.0).draw();
-        s.fill_color = [0.0, 1.0, 0.0, 0.5];
+        s.fill_color = Color::rgba8(0, 255, 0, 127);
         s.rect().w(50.0).h(50.0).x(25.0).y(25.0).draw();
     }
 }
@@ -77,7 +77,7 @@ impl State {
         }
 
         let color = *color;
-        s.fill_color = [color, color, color, 1.0];
+        s.fill_color = Color::rgba(color, color, color, 1.0);
         s.rect().x(x).y(y).w(w).h(h).draw();
         if sense.click_ended {
             onclick(self, s);
