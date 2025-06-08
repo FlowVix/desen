@@ -23,6 +23,7 @@ pub struct GPUData {
 
     pub normal_pipeline: wgpu::RenderPipeline,
     pub additive_pipeline: wgpu::RenderPipeline,
+    pub stencil_pipeline: wgpu::RenderPipeline,
 
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
@@ -122,7 +123,7 @@ impl GPUData {
             unclipped_depth: false,
             conservative: false,
         };
-        let depth_stencil = Some(wgpu::DepthStencilState {
+        let depth_stencil_nowrite = Some(wgpu::DepthStencilState {
             format: wgpu::TextureFormat::Depth24PlusStencil8,
             depth_write_enabled: false,
             depth_compare: wgpu::CompareFunction::Always,
@@ -136,6 +137,23 @@ impl GPUData {
                 back: Default::default(),
                 read_mask: 0xFF,
                 write_mask: 0x00,
+            },
+            bias: wgpu::DepthBiasState::default(),
+        });
+        let depth_stencil_write = Some(wgpu::DepthStencilState {
+            format: wgpu::TextureFormat::Depth24PlusStencil8,
+            depth_write_enabled: false,
+            depth_compare: wgpu::CompareFunction::Always,
+            stencil: wgpu::StencilState {
+                front: wgpu::StencilFaceState {
+                    compare: wgpu::CompareFunction::Always,
+                    fail_op: wgpu::StencilOperation::Keep,
+                    depth_fail_op: wgpu::StencilOperation::Keep,
+                    pass_op: wgpu::StencilOperation::Replace,
+                },
+                back: Default::default(),
+                read_mask: 0xFF,
+                write_mask: 0xFF,
             },
             bias: wgpu::DepthBiasState::default(),
         });
@@ -179,7 +197,7 @@ impl GPUData {
                     })]),
                 )),
                 primitive: primitive_state,
-                depth_stencil: depth_stencil.clone(),
+                depth_stencil: depth_stencil_nowrite.clone(),
                 multisample: wgpu::MultisampleState {
                     count: SAMPLE_COUNT,
                     mask: !0,
@@ -193,7 +211,7 @@ impl GPUData {
             let module = wgsl_main::create_shader_module(&device);
 
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("main_render_pipeline"),
+                label: Some("additive_render_pipeline"),
                 layout: Some(&wgsl_main::create_pipeline_layout(&device)),
                 vertex: crate::render::shaders::make_vertex_state(
                     &module,
@@ -211,7 +229,32 @@ impl GPUData {
                     })]),
                 )),
                 primitive: primitive_state,
-                depth_stencil,
+                depth_stencil: depth_stencil_nowrite,
+                multisample: wgpu::MultisampleState {
+                    count: SAMPLE_COUNT,
+                    mask: !0,
+                    alpha_to_coverage_enabled: false,
+                },
+                multiview: None,
+                cache: None,
+            })
+        };
+        let stencil_pipeline = {
+            let module = wgsl_main::create_shader_module(&device);
+
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("stencil_render_pipeline"),
+                layout: Some(&wgsl_main::create_pipeline_layout(&device)),
+                vertex: crate::render::shaders::make_vertex_state(
+                    &module,
+                    &wgsl_main::entries::vertex_entry_vs_main(
+                        wgpu::VertexStepMode::Vertex,
+                        wgpu::VertexStepMode::Instance,
+                    ),
+                ),
+                fragment: None,
+                primitive: primitive_state,
+                depth_stencil: depth_stencil_write,
                 multisample: wgpu::MultisampleState {
                     count: SAMPLE_COUNT,
                     mask: !0,
@@ -290,6 +333,7 @@ impl GPUData {
             bind_group_0,
             normal_pipeline,
             additive_pipeline,
+            stencil_pipeline,
             vertex_buffer,
             index_buffer,
             mask_atlas,
