@@ -23,7 +23,6 @@ pub struct GPUData {
 
     pub normal_pipeline: wgpu::RenderPipeline,
     pub additive_pipeline: wgpu::RenderPipeline,
-    pub stencil_pipeline: wgpu::RenderPipeline,
 
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
@@ -123,40 +122,6 @@ impl GPUData {
             unclipped_depth: false,
             conservative: false,
         };
-        let depth_stencil_nowrite = Some(wgpu::DepthStencilState {
-            format: wgpu::TextureFormat::Depth24PlusStencil8,
-            depth_write_enabled: false,
-            depth_compare: wgpu::CompareFunction::Always,
-            stencil: wgpu::StencilState {
-                front: wgpu::StencilFaceState {
-                    compare: wgpu::CompareFunction::Equal,
-                    fail_op: wgpu::StencilOperation::Keep,
-                    depth_fail_op: wgpu::StencilOperation::Keep,
-                    pass_op: wgpu::StencilOperation::Keep,
-                },
-                back: Default::default(),
-                read_mask: 0xFF,
-                write_mask: 0x00,
-            },
-            bias: wgpu::DepthBiasState::default(),
-        });
-        let depth_stencil_write = Some(wgpu::DepthStencilState {
-            format: wgpu::TextureFormat::Depth24PlusStencil8,
-            depth_write_enabled: false,
-            depth_compare: wgpu::CompareFunction::Always,
-            stencil: wgpu::StencilState {
-                front: wgpu::StencilFaceState {
-                    compare: wgpu::CompareFunction::Always,
-                    fail_op: wgpu::StencilOperation::Keep,
-                    depth_fail_op: wgpu::StencilOperation::Keep,
-                    pass_op: wgpu::StencilOperation::Replace,
-                },
-                back: Default::default(),
-                read_mask: 0xFF,
-                write_mask: 0xFF,
-            },
-            bias: wgpu::DepthBiasState::default(),
-        });
 
         let normal_blend_state = wgpu::BlendState {
             color: wgpu::BlendComponent {
@@ -197,7 +162,7 @@ impl GPUData {
                     })]),
                 )),
                 primitive: primitive_state,
-                depth_stencil: depth_stencil_nowrite.clone(),
+                depth_stencil: None,
                 multisample: wgpu::MultisampleState {
                     count: SAMPLE_COUNT,
                     mask: !0,
@@ -229,32 +194,7 @@ impl GPUData {
                     })]),
                 )),
                 primitive: primitive_state,
-                depth_stencil: depth_stencil_nowrite,
-                multisample: wgpu::MultisampleState {
-                    count: SAMPLE_COUNT,
-                    mask: !0,
-                    alpha_to_coverage_enabled: false,
-                },
-                multiview: None,
-                cache: None,
-            })
-        };
-        let stencil_pipeline = {
-            let module = wgsl_main::create_shader_module(&device);
-
-            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("stencil_render_pipeline"),
-                layout: Some(&wgsl_main::create_pipeline_layout(&device)),
-                vertex: crate::render::shaders::make_vertex_state(
-                    &module,
-                    &wgsl_main::entries::vertex_entry_vs_main(
-                        wgpu::VertexStepMode::Vertex,
-                        wgpu::VertexStepMode::Instance,
-                    ),
-                ),
-                fragment: None,
-                primitive: primitive_state,
-                depth_stencil: depth_stencil_write,
+                depth_stencil: None,
                 multisample: wgpu::MultisampleState {
                     count: SAMPLE_COUNT,
                     mask: !0,
@@ -333,7 +273,6 @@ impl GPUData {
             bind_group_0,
             normal_pipeline,
             additive_pipeline,
-            stencil_pipeline,
             vertex_buffer,
             index_buffer,
             mask_atlas,
@@ -386,17 +325,6 @@ impl GPUData {
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        let stencil_texture = Texture::blank(
-            &self.device,
-            wgpu::TextureFormat::Depth24PlusStencil8,
-            self.surface_config.width,
-            self.surface_config.height,
-            wgpu::FilterMode::Linear,
-            wgpu::TextureUsages::RENDER_ATTACHMENT,
-            1,
-            SAMPLE_COUNT,
-        );
-
         let multisample_view = self
             .device
             .create_texture(&self.multisampled_frame_descriptor)
@@ -429,32 +357,21 @@ impl GPUData {
                 }
 
                 {
-                    let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    let pass_desc = wgpu::RenderPassDescriptor {
                         label: Some("Render Pass"),
                         color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                             view: &multisample_view,
                             resolve_target: Some(&output_view),
                             ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(wgpu::Color {
-                                    r: 0.0,
-                                    g: 0.0,
-                                    b: 0.0,
-                                    a: 1.0,
-                                }),
+                                load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
                                 store: wgpu::StoreOp::Store,
                             },
                         })],
-                        depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                            view: &stencil_texture.view,
-                            depth_ops: None,
-                            stencil_ops: Some(wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(0),
-                                store: wgpu::StoreOp::Store,
-                            }),
-                        }),
+                        depth_stencil_attachment: None,
                         occlusion_query_set: None,
                         timestamp_writes: None,
-                    });
+                    };
+                    let mut render_pass = encoder.begin_render_pass(&pass_desc);
 
                     render_pass.set_pipeline(&self.normal_pipeline);
                     render_pass.set_bind_group(0, self.bind_group_0.get_bind_group(), &[]);

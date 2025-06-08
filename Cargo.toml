@@ -18,6 +18,9 @@ cosmic-text = "0.14.2"
 etagere = "0.2.15"
 lru = "0.14.0"
 palette = "0.7.6"
+lyon = "1.0.1"
+geo-clipper = "0.9.0"
+geo-types = "0.7.16"
 # lyon = "1.0.1"
 
 [build-dependencies]

@@ -43,7 +43,6 @@ pub struct DrawCall {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RenderPass {
     pub start_instance: u32,
-    pub is_stencil: bool,
     pub draw_calls: Vec<DrawCall>,
 }
 
@@ -131,7 +130,6 @@ impl Stage {
         self.render_passes.clear();
         self.render_passes.push(RenderPass {
             start_instance: 0,
-            is_stencil: false,
             draw_calls: vec![DrawCall {
                 start_instance: 0,
                 set_blend_mode: None,
