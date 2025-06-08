@@ -1,7 +1,6 @@
 #![deny(unused_must_use, unnameable_types)]
 
 mod render;
-mod shaders;
 mod stage;
 mod state;
 

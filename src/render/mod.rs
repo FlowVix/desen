@@ -1,4 +1,5 @@
 pub mod gpu;
+pub mod shaders;
 pub mod text;
 pub mod texture;
 

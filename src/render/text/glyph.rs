@@ -1,10 +1,7 @@
 use etagere::AllocId;
 use glam::Affine2;
 
-use crate::{
-    render::{gpu::GPUData, text::atlas::create_atlases_bind_group},
-    shaders::wgsl_main,
-};
+use crate::render::{gpu::GPUData, shaders::wgsl_main, text::atlas::create_atlases_bind_group};
 
 /// some glyphs are just a mask where each pixel is a 0-255 value, like most text
 /// other glyphs are full color, like emojis

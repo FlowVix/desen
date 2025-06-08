@@ -19,8 +19,10 @@ use sense::{Interactions, SenseSave, SenseShape, SenseShapeType, test_in_shape};
 
 use crate::{
     AppData,
-    render::text::{HashableMetrics, find_closest_attrs, glyph::prepare_glyph},
-    shaders::wgsl_main::structs::{InstanceInput, VertexInput},
+    render::{
+        shaders::wgsl_main,
+        text::{HashableMetrics, find_closest_attrs, glyph::prepare_glyph},
+    },
     stage::color::Color,
     state::data::{TextureInfo, TextureKey},
 };
@@ -40,7 +42,7 @@ pub struct DrawCall {
 
 pub struct Stage {
     // gpu related -------------------------------
-    pub(crate) instances: Vec<InstanceInput>,
+    pub(crate) instances: Vec<wgsl_main::structs::InstanceInput>,
     pub(crate) draw_calls: Vec<DrawCall>,
 
     // modifiable -------------------------------
@@ -355,7 +357,7 @@ impl Stage {
         #[builder(default = [-10.0, 0.0])] uv_b: [f32; 2],
         #[builder(default = [-10.0, 0.0])] uv_c: [f32; 2],
     ) {
-        self.instances.push(InstanceInput::new(
+        self.instances.push(wgsl_main::structs::InstanceInput::new(
             a,
             b,
             c,

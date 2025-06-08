@@ -2,10 +2,7 @@ use std::sync::Arc;
 
 use slotmap::{SlotMap, new_key_type};
 
-use crate::{
-    render::{gpu::GPUData, texture::Texture},
-    shaders::wgsl_main,
-};
+use crate::render::{gpu::GPUData, shaders::wgsl_main, texture::Texture};
 
 new_key_type! {
     pub struct TextureKey;

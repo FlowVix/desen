@@ -3,10 +3,7 @@ use std::collections::HashSet;
 use etagere::{Allocation, BucketedAtlasAllocator, size2};
 use lru::LruCache;
 
-use crate::{
-    render::texture::Texture,
-    shaders::{self, wgsl_main},
-};
+use crate::render::{shaders::wgsl_main, texture::Texture};
 
 use super::glyph::{ContentType, GlyphCacheStatus, GlyphData};
 

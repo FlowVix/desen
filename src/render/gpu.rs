@@ -4,10 +4,10 @@ use crate::{
     BlendMode, Stage,
     render::{
         SAMPLE_COUNT,
+        shaders::wgsl_main,
         text::{atlas::create_atlases_bind_group, glyph::ContentType},
         texture::Texture,
     },
-    shaders::wgsl_main,
     state::data::TextureMap,
 };
 
@@ -163,14 +163,14 @@ impl GPUData {
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("main_render_pipeline"),
                 layout: Some(&wgsl_main::create_pipeline_layout(&device)),
-                vertex: crate::shaders::make_vertex_state(
+                vertex: crate::render::shaders::make_vertex_state(
                     &module,
                     &wgsl_main::entries::vertex_entry_vs_main(
                         wgpu::VertexStepMode::Vertex,
                         wgpu::VertexStepMode::Instance,
                     ),
                 ),
-                fragment: Some(crate::shaders::make_fragment_state(
+                fragment: Some(crate::render::shaders::make_fragment_state(
                     &module,
                     &wgsl_main::entries::fragment_entry_fs_main(&[Some(wgpu::ColorTargetState {
                         format: surface_config.format,
@@ -195,14 +195,14 @@ impl GPUData {
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("main_render_pipeline"),
                 layout: Some(&wgsl_main::create_pipeline_layout(&device)),
-                vertex: crate::shaders::make_vertex_state(
+                vertex: crate::render::shaders::make_vertex_state(
                     &module,
                     &wgsl_main::entries::vertex_entry_vs_main(
                         wgpu::VertexStepMode::Vertex,
                         wgpu::VertexStepMode::Instance,
                     ),
                 ),
-                fragment: Some(crate::shaders::make_fragment_state(
+                fragment: Some(crate::render::shaders::make_fragment_state(
                     &module,
                     &wgsl_main::entries::fragment_entry_fs_main(&[Some(wgpu::ColorTargetState {
                         format: surface_config.format,
