@@ -40,10 +40,17 @@ pub struct DrawCall {
     pub set_texture: Option<TextureKey>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct RenderPass {
+    pub start_instance: u32,
+    pub is_stencil: bool,
+    pub draw_calls: Vec<DrawCall>,
+}
+
 pub struct Stage {
     // gpu related -------------------------------
     pub(crate) instances: Vec<wgsl_main::structs::InstanceInput>,
-    pub(crate) draw_calls: Vec<DrawCall>,
+    pub(crate) render_passes: Vec<RenderPass>,
 
     // modifiable -------------------------------
     pub fill_color: Color,
@@ -84,7 +91,7 @@ impl Stage {
     pub(crate) fn new() -> Self {
         let mut out = Self {
             instances: vec![],
-            draw_calls: vec![],
+            render_passes: vec![],
             fill_color: Color::rgba8(0, 0, 0, 0),
             stroke_color: Color::rgba8(0, 0, 0, 0),
             stroke_weight: 0.0,
@@ -121,11 +128,15 @@ impl Stage {
     }
     pub(crate) fn start(&mut self) {
         self.instances.clear();
-        self.draw_calls.clear();
-        self.draw_calls.push(DrawCall {
+        self.render_passes.clear();
+        self.render_passes.push(RenderPass {
             start_instance: 0,
-            set_blend_mode: None,
-            set_texture: None,
+            is_stencil: false,
+            draw_calls: vec![DrawCall {
+                start_instance: 0,
+                set_blend_mode: None,
+                set_texture: None,
+            }],
         });
 
         self.fill_color = Color::rgb8(255, 255, 255);
@@ -305,8 +316,9 @@ impl Stage {
     }
 
     pub fn set_blend_mode(&mut self, mode: BlendMode) {
+        let calls = &mut self.render_passes.last_mut().unwrap().draw_calls;
         if self.current_blend_mode != mode {
-            self.draw_calls.push(DrawCall {
+            calls.push(DrawCall {
                 start_instance: self.instances.len() as u32,
                 set_blend_mode: Some(mode),
                 set_texture: None,
@@ -318,8 +330,9 @@ impl Stage {
         self.current_blend_mode
     }
     pub fn set_texture(&mut self, texture: TextureInfo) {
+        let calls = &mut self.render_passes.last_mut().unwrap().draw_calls;
         if self.current_texture != Some(texture) {
-            self.draw_calls.push(DrawCall {
+            calls.push(DrawCall {
                 start_instance: self.instances.len() as u32,
                 set_blend_mode: None,
                 set_texture: Some(texture.key),

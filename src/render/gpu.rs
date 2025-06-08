@@ -414,71 +414,85 @@ impl GPUData {
                 usage: wgpu::BufferUsages::VERTEX,
             });
 
-        {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &multisample_view,
-                    resolve_target: Some(&output_view),
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.0,
-                            g: 0.0,
-                            b: 0.0,
-                            a: 1.0,
+        if !stage.instances.is_empty() {
+            let num_instances = stage.instances.len() as u32;
+            for (idx, pass) in stage.render_passes.iter().enumerate() {
+                let render_pass_start_instance = pass.start_instance;
+                let render_pass_end_instance = stage
+                    .render_passes
+                    .get(idx + 1)
+                    .map(|p| p.start_instance)
+                    .unwrap_or(num_instances);
+
+                if render_pass_end_instance - render_pass_start_instance == 0 {
+                    continue;
+                }
+
+                {
+                    let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                        label: Some("Render Pass"),
+                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                            view: &multisample_view,
+                            resolve_target: Some(&output_view),
+                            ops: wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(wgpu::Color {
+                                    r: 0.0,
+                                    g: 0.0,
+                                    b: 0.0,
+                                    a: 1.0,
+                                }),
+                                store: wgpu::StoreOp::Store,
+                            },
+                        })],
+                        depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                            view: &stencil_texture.view,
+                            depth_ops: None,
+                            stencil_ops: Some(wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(0),
+                                store: wgpu::StoreOp::Store,
+                            }),
                         }),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &stencil_texture.view,
-                    depth_ops: None,
-                    stencil_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(0),
-                        store: wgpu::StoreOp::Store,
-                    }),
-                }),
-                occlusion_query_set: None,
-                timestamp_writes: None,
-            });
+                        occlusion_query_set: None,
+                        timestamp_writes: None,
+                    });
 
-            if !stage.instances.is_empty() {
-                render_pass.set_pipeline(&self.normal_pipeline);
-                render_pass.set_bind_group(0, self.bind_group_0.get_bind_group(), &[]);
-                render_pass.set_bind_group(1, self.dummy_texture.get_bind_group(), &[]);
-                render_pass.set_bind_group(2, self.text_atlas_bind_group.get_bind_group(), &[]);
-                render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-                render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
-                render_pass
-                    .set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+                    render_pass.set_pipeline(&self.normal_pipeline);
+                    render_pass.set_bind_group(0, self.bind_group_0.get_bind_group(), &[]);
+                    render_pass.set_bind_group(1, self.dummy_texture.get_bind_group(), &[]);
+                    render_pass.set_bind_group(2, self.text_atlas_bind_group.get_bind_group(), &[]);
+                    render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+                    render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+                    render_pass
+                        .set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
 
-                let num_instances = stage.instances.len() as u32;
-                for (idx, pass) in stage.draw_calls.iter().enumerate() {
-                    let start = pass.start_instance;
-                    let end = stage
-                        .draw_calls
-                        .get(idx + 1)
-                        .map(|p| p.start_instance)
-                        .unwrap_or(num_instances);
+                    for (idx, call) in pass.draw_calls.iter().enumerate() {
+                        let call_start_instance = pass.start_instance;
+                        let call_end_instance = pass
+                            .draw_calls
+                            .get(idx + 1)
+                            .map(|c| c.start_instance)
+                            .unwrap_or(render_pass_end_instance);
 
-                    if let Some(mode) = pass.set_blend_mode {
-                        render_pass.set_pipeline(match mode {
-                            BlendMode::Normal => &self.normal_pipeline,
-                            BlendMode::Additive => &self.additive_pipeline,
-                        });
+                        if let Some(mode) = call.set_blend_mode {
+                            render_pass.set_pipeline(match mode {
+                                BlendMode::Normal => &self.normal_pipeline,
+                                BlendMode::Additive => &self.additive_pipeline,
+                            });
+                        }
+                        if let Some(tex) = call.set_texture {
+                            render_pass.set_bind_group(
+                                1,
+                                loaded_textures[tex].bind_group.get_bind_group(),
+                                &[],
+                            );
+                        }
+
+                        render_pass.draw_indexed(0..3, 0, call_start_instance..call_end_instance);
                     }
-                    if let Some(tex) = pass.set_texture {
-                        render_pass.set_bind_group(
-                            1,
-                            loaded_textures[tex].bind_group.get_bind_group(),
-                            &[],
-                        );
-                    }
-
-                    render_pass.draw_indexed(0..3, 0, start..end);
                 }
             }
         }
+
         self.queue.submit([encoder.finish()]);
         output.present();
     }
