@@ -12,6 +12,7 @@ use desen::{AppData, AppState, BlendMode, Color, Stage, TextureInfo, run_app};
 use dioxus_devtools::subsecond;
 use glam::FloatExt;
 use image::ImageReader;
+use palette::{FromColor, Hsv, Srgb, Srgba, WithAlpha};
 
 struct State {
     time: f32,
@@ -42,11 +43,8 @@ impl AppState for State {
     }
 
     fn render(&mut self, s: &mut Stage, data: &mut AppData) {
-        s.set_blend_mode(BlendMode::Additive);
-        s.fill_color = Color::rgb8(255, 0, 0);
+        s.fill_color = Color::hsv(289.0 / 360.0, 36.0 / 100.0, 57.0 / 100.0);
         s.rect().w(50.0).h(50.0).draw();
-        s.fill_color = Color::rgba8(0, 255, 0, 127);
-        s.rect().w(50.0).h(50.0).x(25.0).y(25.0).draw();
     }
 }
 
