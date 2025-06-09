@@ -14,7 +14,8 @@ use std::{
 use cosmic_text::AttrsOwned;
 use itertools::Itertools;
 
-use glam::{Affine2, Mat2, Vec2, vec2};
+use glam::{Affine2, Mat2, Vec2, Vec4, vec2};
+
 use sense::{Interactions, SenseSave, SenseShape, SenseShapeType, test_in_shape};
 
 use crate::{
@@ -25,6 +26,7 @@ use crate::{
     },
     stage::color::Color,
     state::data::{TextureInfo, TextureKey},
+    util::cart_to_bary,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -210,6 +212,7 @@ impl Stage {
                 None
             };
     }
+
     fn new_sense_id(&mut self) -> u64 {
         let v = self.sense_id_ctr;
         self.sense_id_ctr += 1;

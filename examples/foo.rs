@@ -43,8 +43,9 @@ impl AppState for State {
     }
 
     fn render(&mut self, s: &mut Stage, data: &mut AppData) {
-        s.fill_color = Color::hsv(289.0 / 360.0, 36.0 / 100.0, 57.0 / 100.0);
-        s.rect().w(50.0).h(50.0).draw();
+        s.draw_stroke = false;
+        s.rotate(self.time);
+        s.rect().w(50.0).h(50.0).centered(true).draw();
     }
 }
 
