@@ -1,3 +1,4 @@
+pub mod clip;
 pub mod color;
 pub mod sense;
 
@@ -16,6 +17,7 @@ use itertools::Itertools;
 
 use glam::{Affine2, Mat2, Vec2, Vec4, vec2};
 
+use lyon::{algorithms::walk, path::Path};
 use sense::{Interactions, SenseSave, SenseShape, SenseShapeType, test_in_shape};
 
 use crate::{
@@ -28,6 +30,9 @@ use crate::{
     state::data::{TextureInfo, TextureKey},
     util::cart_to_bary,
 };
+
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Ord)]
+pub struct ClipID(u32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BlendMode {
@@ -51,6 +56,9 @@ pub struct RenderPass {
 pub struct Stage {
     // gpu related -------------------------------
     pub(crate) instances: Vec<wgsl_main::structs::InstanceInput>,
+    pub(crate) clip_polygon_points: Vec<[f32; 2]>,
+    pub(crate) clip_polygons: Vec<wgsl_main::structs::ClipPolygon>,
+
     pub(crate) render_passes: Vec<RenderPass>,
 
     // modifiable -------------------------------
@@ -67,6 +75,8 @@ pub struct Stage {
 
     pub(crate) current_blend_mode: BlendMode,
     pub(crate) current_texture: Option<TextureInfo>,
+
+    pub(crate) current_clip: u32,
 
     // outside handled readonly -------------------------------
     pub(crate) mouse_pos: Vec2,
@@ -92,6 +102,8 @@ impl Stage {
     pub(crate) fn new() -> Self {
         let mut out = Self {
             instances: vec![],
+            clip_polygon_points: vec![],
+            clip_polygons: vec![],
             render_passes: vec![],
             fill_color: Color::rgba8(0, 0, 0, 0),
             stroke_color: Color::rgba8(0, 0, 0, 0),
@@ -102,6 +114,7 @@ impl Stage {
             transform: Affine2::IDENTITY,
             current_blend_mode: BlendMode::Normal,
             current_texture: None,
+            current_clip: 0,
             old_senses: vec![],
             build_senses: vec![],
             sense_id_ctr: 0,
@@ -129,6 +142,13 @@ impl Stage {
     }
     pub(crate) fn start(&mut self) {
         self.instances.clear();
+        self.clip_polygon_points.clear();
+        self.clip_polygons.clear();
+        // there need to be some items in
+        self.clip_polygon_points.push([0.0; 2]);
+        self.clip_polygons
+            .push(wgsl_main::structs::ClipPolygon::new(0, 0, 0));
+
         self.render_passes.clear();
         self.render_passes.push(RenderPass {
             start_instance: 0,
@@ -152,6 +172,7 @@ impl Stage {
 
         self.current_blend_mode = BlendMode::Normal;
         self.current_texture = None;
+        self.current_clip = 0;
 
         swap(&mut self.build_senses, &mut self.old_senses);
         self.build_senses.clear();
@@ -211,6 +232,39 @@ impl Stage {
             } else {
                 None
             };
+    }
+
+    pub fn add_clip(&mut self, path: &lyon::path::Path) {
+        let start_point = self.clip_polygon_points.len();
+
+        walk::walk_along_path(
+            path,
+            0.0,
+            0.1,
+            &mut walk::RegularPattern {
+                callback: |event: walk::WalkerEvent| {
+                    self.clip_polygon_points
+                        .push([event.position.x, event.position.y]);
+                    true
+                },
+                interval: 1.0,
+            },
+        );
+
+        let end_point = self.clip_polygon_points.len();
+        self.clip_polygons
+            .push(wgsl_main::structs::ClipPolygon::new(
+                start_point as u32,
+                end_point as u32,
+                self.current_clip,
+            ));
+        self.current_clip = self.clip_polygons.len() as u32 - 1;
+    }
+    pub fn get_clip_id(&self) -> ClipID {
+        ClipID(self.current_clip)
+    }
+    pub fn set_clip_id(&mut self, id: ClipID) {
+        self.current_clip = id.0;
     }
 
     fn new_sense_id(&mut self) -> u64 {
@@ -385,6 +439,7 @@ impl Stage {
             self.transform.matrix2.y_axis.to_array(),
             self.transform.translation.to_array(),
             0,
+            self.current_clip,
         ));
     }
 
@@ -630,6 +685,7 @@ impl Stage {
                     self.transform,
                     x,
                     y,
+                    self.current_clip,
                 ) {
                     self.instances.extend(instances);
                     // self.push_rect_direct(rect);

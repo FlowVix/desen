@@ -57,6 +57,7 @@ pub fn prepare_glyph(
     transform: Affine2,
     offset_x: f32,
     offset_y: f32,
+    clip_poly: u32,
 ) -> Option<[wgsl_main::structs::InstanceInput; 2]> {
     let data = if let Some(d) = gpu_data.mask_atlas.glyph_cache.get(&physical.cache_key) {
         gpu_data.mask_atlas.glyphs_in_use.insert(physical.cache_key);
@@ -201,6 +202,7 @@ pub fn prepare_glyph(
             } else {
                 2
             },
+            clip_poly,
         ),
         wgsl_main::structs::InstanceInput::new(
             points[2],
@@ -220,6 +222,7 @@ pub fn prepare_glyph(
             } else {
                 2
             },
+            clip_poly,
         ),
     ])
 }

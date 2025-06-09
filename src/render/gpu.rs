@@ -342,6 +342,30 @@ impl GPUData {
                 usage: wgpu::BufferUsages::VERTEX,
             });
 
+        let clip_polygon_points_buffer =
+            self.device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("Clip Polygon Points Buffer"),
+                    contents: bytemuck::cast_slice(&stage.clip_polygon_points),
+                    usage: wgpu::BufferUsages::STORAGE,
+                });
+        let clip_polygons_buffer =
+            self.device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("Clip Polygons Buffer"),
+                    contents: bytemuck::cast_slice(&stage.clip_polygons),
+                    usage: wgpu::BufferUsages::STORAGE,
+                });
+        let bind_group_3 = wgsl_main::globals::BindGroup3::from_bindings(
+            &self.device,
+            wgsl_main::globals::BindGroup3Entries::new(
+                wgsl_main::globals::BindGroup3EntriesEntriesParams {
+                    CLIP_POLYGON_POINTS: clip_polygon_points_buffer.as_entire_buffer_binding(),
+                    CLIP_POLYGONS: clip_polygons_buffer.as_entire_buffer_binding(),
+                },
+            ),
+        );
+
         if !stage.instances.is_empty() {
             let num_instances = stage.instances.len() as u32;
             for (idx, pass) in stage.render_passes.iter().enumerate() {
@@ -377,6 +401,7 @@ impl GPUData {
                     render_pass.set_bind_group(0, self.bind_group_0.get_bind_group(), &[]);
                     render_pass.set_bind_group(1, self.dummy_texture.get_bind_group(), &[]);
                     render_pass.set_bind_group(2, self.text_atlas_bind_group.get_bind_group(), &[]);
+                    render_pass.set_bind_group(3, bind_group_3.get_bind_group(), &[]);
                     render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
                     render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
                     render_pass

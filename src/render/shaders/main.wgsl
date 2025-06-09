@@ -24,6 +24,7 @@ struct InstanceInput {
 
     // 0: no, 1: mask, 2: color
     @location(13) is_text: u32,
+    @location(14) clip_poly: u32,
 };
 
 struct VertexOutput {
@@ -31,6 +32,7 @@ struct VertexOutput {
     @location(0) color: vec4f,
     @location(1) uv: vec2f,
     @location(2) is_text: u32,
+    @location(3) clip_poly: u32,
 };
 
 @vertex
@@ -70,10 +72,18 @@ fn vs_main(
         default: {}
     }
     out.is_text = instance.is_text;
+    out.clip_poly = instance.clip_poly;
 
     return out;
 }
 
+
+struct ClipPolygon {
+    start_point: u32,
+    end_point: u32,
+    // 0 is no parent
+    parent: u32,
+}
 
 @group(0) @binding(0) var<uniform> GLOBALS: Globals;
 
@@ -84,6 +94,9 @@ fn vs_main(
 @group(2) @binding(1) var TEXT_MASK_S: sampler;
 @group(2) @binding(2) var TEXT_COLOR_T: texture_2d<f32>;
 @group(2) @binding(3) var TEXT_COLOR_S: sampler;
+
+@group(3) @binding(0) var<storage> CLIP_POLYGON_POINTS: array<vec2f>;
+@group(3) @binding(1) var<storage> CLIP_POLYGONS: array<ClipPolygon>;
 
 
 fn fs_color(in: VertexOutput) -> vec4f {
@@ -107,9 +120,49 @@ fn fs_color(in: VertexOutput) -> vec4f {
     }
 }
 
+fn point_in_poly(pos: vec2f, poly: ClipPolygon) -> bool {
+    var c = false;
+    let point_count = poly.end_point - poly.start_point;
+    for(var i = 0u; i < point_count; i++) {
+        let idx1 = i + poly.start_point;
+        let idx2 = ((i + 1) % point_count) + poly.start_point;
+
+        let a = CLIP_POLYGON_POINTS[idx1];
+        let b = CLIP_POLYGON_POINTS[idx2];
+
+        if pos.x == a.x && pos.y == a.y {
+            return true;
+        }
+        if (a.y > pos.y) != (b.y > pos.y) {
+            let slope = (pos.x - a.x) * (b.y - a.y) - (b.x - a.x) * (pos.y - a.y);
+            if slope == 0 {
+                return true;
+            }
+            if (slope < 0) != (b.y < a.y) {
+                c = !c;
+            }
+        }
+    }
+    return c;
+}
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+    let world_pos = (in.pos.xy - GLOBALS.screen_size / 2.0) * vec2(1.0, -1.0);
     let color = fs_color(in);
-    return vec4(color.rgb, color.a);
+
+    var weight = 1.0;
+
+    var clip_poly = in.clip_poly;
+    while clip_poly != 0 {
+        let poly = CLIP_POLYGONS[clip_poly];
+
+        if !point_in_poly(world_pos, poly) {
+            weight = 0.0;
+        }
+
+        clip_poly = poly.parent;
+    }
+
+    return vec4(color.rgb, color.a * weight);
 }
