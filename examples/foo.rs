@@ -7,12 +7,11 @@ use std::{
     time::Duration,
 };
 
-use desen::{AppData, AppState, BlendMode, Color, Stage, TextureInfo, run_app};
+use desen::{AppData, AppState, BlendMode, Color, PathBuilder, Stage, TextureInfo, run_app};
 
 use dioxus_devtools::subsecond;
 use glam::FloatExt;
 use image::ImageReader;
-use lyon::{math::point, path::Path};
 use palette::{FromColor, Hsv, Srgb, Srgba, WithAlpha};
 
 struct State {
@@ -46,16 +45,19 @@ impl AppState for State {
     fn render(&mut self, s: &mut Stage, data: &mut AppData) {
         s.draw_stroke = false;
 
-        let mut p = Path::builder();
+        let mut p = PathBuilder::new();
+        p.begin([0.0, 0.0]);
+        p.line_to([50.0, 0.0]);
+        p.quadratic_bezier_to([0.0, 50.0], [50.0, 50.0]);
+        p.end(true);
+        let path = p.build();
 
-        p.begin(point(0.0, 0.0));
-        p.line_to(point(50.0, 0.0));
-        p.quadratic_bezier_to(point(50.0, 50.0), point(0.0, 50.0));
-        p.close();
+        let t = s.transform;
+        s.translate(50.0, 50.0);
+        s.add_clip(&path);
+        s.transform = t;
 
-        s.add_clip(&p.build());
-        s.rotate(self.time);
-        s.rect().w(200.0).h(20.0).centered(true).draw();
+        s.rect().w(90.0).h(90.0).draw();
     }
 }
 

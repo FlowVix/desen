@@ -1,5 +1,5 @@
-pub mod clip;
 pub mod color;
+pub mod path;
 pub mod sense;
 
 use std::{
@@ -17,11 +17,11 @@ use itertools::Itertools;
 
 use glam::{Affine2, Mat2, Vec2, Vec4, vec2};
 
-use lyon::{algorithms::walk, path::Path};
+use lyon::algorithms::walk;
 use sense::{Interactions, SenseSave, SenseShape, SenseShapeType, test_in_shape};
 
 use crate::{
-    AppData,
+    AppData, Path,
     render::{
         shaders::wgsl_main,
         text::{HashableMetrics, find_closest_attrs, glyph::prepare_glyph},
@@ -234,20 +234,23 @@ impl Stage {
             };
     }
 
-    pub fn add_clip(&mut self, path: &lyon::path::Path) {
+    pub fn add_clip(&mut self, path: &Path) {
         let start_point = self.clip_polygon_points.len();
 
         walk::walk_along_path(
-            path,
+            &path.inner,
             0.0,
             0.1,
             &mut walk::RegularPattern {
                 callback: |event: walk::WalkerEvent| {
-                    self.clip_polygon_points
-                        .push([event.position.x, event.position.y]);
+                    let pos = self
+                        .transform
+                        .transform_point2(vec2(event.position.x, event.position.y));
+
+                    self.clip_polygon_points.push([pos.x, pos.y]);
                     true
                 },
-                interval: 1.0,
+                interval: 5.0,
             },
         );
 

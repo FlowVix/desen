@@ -148,21 +148,37 @@ fn point_in_poly(pos: vec2f, poly: ClipPolygon) -> bool {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-    let world_pos = (in.pos.xy - GLOBALS.screen_size / 2.0) * vec2(1.0, -1.0);
     let color = fs_color(in);
 
-    var weight = 1.0;
+    var antialias = array(
+        vec2(-3.0 / 8.0, 1.0 / 8.0),
+        vec2(1.0 / 8.0, 3.0 / 8.0),
+        vec2(3.0 / 8.0, -1.0 / 8.0),
+        vec2(-1.0 / 8.0, -3.0 / 8.0),
+        vec2(0.0, 0.0),
+    );
+
+    let world_pos = (in.pos.xy - GLOBALS.screen_size / 2.0) * vec2(1.0, -1.0);
+
+    var final_weight = 1.0;
 
     var clip_poly = in.clip_poly;
     while clip_poly != 0 {
         let poly = CLIP_POLYGONS[clip_poly];
 
-        if !point_in_poly(world_pos, poly) {
-            weight = 0.0;
+        var weight = 0.0;
+
+        for (var i = 0; i < 5; i++) {
+            let pos = world_pos + antialias[i];
+            if point_in_poly(pos, poly) {
+                weight += 1.0;
+            }
         }
+
+        final_weight *= weight / 5;
 
         clip_poly = poly.parent;
     }
 
-    return vec4(color.rgb, color.a * weight);
+    return vec4(color.rgb, color.a * final_weight);
 }

@@ -5,6 +5,11 @@ mod stage;
 mod state;
 mod util;
 
-pub use stage::{BlendMode, ClipID, Stage, color::Color, sense::Interactions};
+pub use stage::{
+    BlendMode, ClipID, Stage,
+    color::Color,
+    path::{Path, PathBuilder},
+    sense::Interactions,
+};
 pub use state::{AppState, data::AppData, data::TextureInfo, run_app};
 pub use winit;
