@@ -11,5 +11,5 @@ pub use stage::{
     path::{Path, PathBuilder},
     sense::Interactions,
 };
-pub use state::{AppState, data::AppData, data::TextureInfo, run_app};
+pub use state::{AppData, AppState, texture::TextureInfo, windowed::run_app_windowed};
 pub use winit;

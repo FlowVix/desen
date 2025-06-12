@@ -7,7 +7,9 @@ use std::{
     time::Duration,
 };
 
-use desen::{AppData, AppState, BlendMode, Color, PathBuilder, Stage, TextureInfo, run_app};
+use desen::{
+    AppData, AppState, BlendMode, Color, PathBuilder, Stage, TextureInfo, run_app_windowed,
+};
 
 use dioxus_devtools::subsecond;
 use glam::FloatExt;
@@ -38,26 +40,24 @@ impl AppState for State {
         }
     }
 
-    fn fixed_update(&mut self, data: &mut AppData) {
-        self.time += 1.0 / 100.0;
-    }
-
     fn render(&mut self, s: &mut Stage, data: &mut AppData) {
+        self.time += s.delta() as f32;
+
         s.draw_stroke = false;
 
+        s.fill_color = Color::rgba8(255, 255, 255, 127);
+
+        s.skew(1.0, 0.0);
+
+        s.rect().w(100.0).h(50.0).draw();
         let mut p = PathBuilder::new();
-        p.begin([0.0, 0.0]);
-        p.line_to([50.0, 0.0]);
-        p.quadratic_bezier_to([0.0, 50.0], [50.0, 50.0]);
-        p.end(true);
-        let path = p.build();
+        p.add_rectangle([0.0, 0.0], [100.0, 50.0]);
+        let p = p.build();
+        s.add_clip(&p);
 
-        let t = s.transform;
-        s.translate(50.0, 50.0);
-        s.add_clip(&path);
-        s.transform = t;
-
-        s.rect().w(90.0).h(90.0).draw();
+        s.fill_color = Color::rgb8(255, 0, 0);
+        let mpos = s.mouse_world_pos();
+        s.ellipse().x(mpos[0]).y(mpos[1]).w(20.0).h(20.0).draw();
     }
 }
 
@@ -97,5 +97,5 @@ impl State {
 }
 
 fn main() {
-    run_app::<State>(100);
+    run_app_windowed::<State>();
 }

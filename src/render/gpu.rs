@@ -8,7 +8,7 @@ use crate::{
         text::{atlas::create_atlases_bind_group, glyph::ContentType},
         texture::Texture,
     },
-    state::data::TextureMap,
+    state::texture::TextureMap,
 };
 
 use super::text::atlas::GlyphAtlas;

@@ -27,7 +27,7 @@ use crate::{
         text::{HashableMetrics, find_closest_attrs, glyph::prepare_glyph},
     },
     stage::color::Color,
-    state::data::{TextureInfo, TextureKey},
+    state::texture::{TextureInfo, TextureKey},
     util::cart_to_bary,
 };
 

@@ -692,6 +692,7 @@ dependencies = [
  "pollster",
  "slotmap",
  "spin_sleep",
+ "web-sys",
  "wgpu",
  "wgsl-grease",
  "winit",
